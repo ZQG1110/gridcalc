@@ -670,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let imgHtml = post.img ? `<img src="${post.img}" class="post-img" alt="인증샷">` : '';
             
             let hasLiked = currentUser && post.likedBy.includes(currentUser);
-            let likeIcon = hasLiked ? '❤️' : '♡';
+            let likeIcon = '❤️';
             
             let commentsHtml = ``;
             post.comments.forEach(c => {
@@ -762,10 +762,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const oneDayMs = 24 * 60 * 60 * 1000;
         const now = Date.now();
         
-        // Filter: has likes >= 1 AND created within last 24h
+        // Filter: has likes >= 1
         let hotPosts = profitPosts.filter(p => {
-            const t = p.timestamp || p.id; // fallback to ID if no timestamp
-            return p.likes >= 1 && (now - t) <= oneDayMs;
+            return p.likes >= 1;
         });
         
         // Sort by likes desc
@@ -789,7 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.style.cursor = 'pointer';
             
             let hasLiked = currentUser && post.likedBy && post.likedBy.includes(currentUser);
-            let likeIcon = hasLiked ? '❤️' : '♡';
+            let likeIcon = '❤️';
             
             card.innerHTML = `
                 <div class="flex-align" style="margin-bottom:0.5rem;">
@@ -822,7 +821,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!post) return;
         
         let hasLiked = currentUser && post.likedBy.includes(currentUser);
-        let likeIcon = hasLiked ? '❤️' : '♡';
+        let likeIcon = '❤️';
         
         let imgHtml = post.img ? `<img src="${post.img}" class="post-img" style="max-height: 400px; object-fit: contain;" alt="인증샷">` : '';
         
@@ -947,7 +946,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${imgHtml}
                 <div style="margin-top:1rem; margin-bottom:0.5rem;">
                     <span style="color:var(--loss); font-weight:700; font-size:1rem; border:1px solid var(--loss); padding:0.1rem 0.5rem; border-radius:4px; background:rgba(239,68,68,0.05);">
-                        ♡ ${post.likes || 0}
+                        ❤️ ${post.likes || 0}
                     </span>
                 </div>
                 <div class="post-footer" style="margin-top:1rem; border-top:1px solid var(--glass-border); padding-top:1rem;">
@@ -1119,5 +1118,34 @@ document.addEventListener('DOMContentLoaded', () => {
             list.appendChild(card);
         });
     }
+
+    // --- Drag and Drop Logic ---
+    function setupDragAndDrop(dropZone, fileInput) {
+        if (!dropZone) return;
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.border = '2px dashed var(--primary)';
+        });
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.border = ''; // restore
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.border = '';
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.type.startsWith('image/') && fileInput) {
+                    const dT = new DataTransfer();
+                    dT.items.add(file);
+                    fileInput.files = dT.files;
+                    fileInput.dispatchEvent(new Event('change'));
+                }
+            }
+        });
+    }
+
+    setupDragAndDrop(document.getElementById('postContent'), postImage);
+    setupDragAndDrop(document.getElementById('blogContent'), blogImageInput);
 
 });

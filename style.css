@@ -38,7 +38,7 @@ body {
 .logo .highlight { color: var(--primary); }
 
 .main-nav { display: flex; gap: 0.5rem; }
-.nav-btn { background: transparent; color: var(--text-muted); border: none; padding: 0.5rem 1rem; font-size: 1rem; font-weight: 600; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+.nav-btn { background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 0.5rem 1rem; font-size: 1rem; font-weight: 600; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
 .nav-btn:hover { color: var(--text-main); background: rgba(0,0,0,0.05); }
 .nav-btn.active { color: var(--primary); background: rgba(79, 70, 229, 0.1); border: 1px solid rgba(79, 70, 229, 0.3); }
 
