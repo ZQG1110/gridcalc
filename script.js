@@ -670,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let imgHtml = post.img ? `<img src="${post.img}" class="post-img" alt="인증샷">` : '';
             
             let hasLiked = currentUser && post.likedBy.includes(currentUser);
-            let likeIcon = hasLiked ? '❤️' : '🤍';
+            let likeIcon = hasLiked ? '❤️' : '♡';
             
             let commentsHtml = ``;
             post.comments.forEach(c => {
@@ -691,8 +691,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="post-body">${post.text.replace(/\n/g, '<br>')}</div>
                 ${imgHtml}
                 <div class="post-actions" style="margin-top:0.5rem; margin-bottom:1rem;">
-                    <button class="btn-text btn-like" data-id="${post.id}" style="font-size:1.1rem; border:1px solid var(--glass-border); padding:0.2rem 0.6rem; border-radius:4px; background:rgba(0,0,0,0.2);">
-                        ${likeIcon} <span style="font-size:0.9rem; color:var(--text-main);">${post.likes}</span>
+                    <button class="btn-text btn-like" data-id="${post.id}" style="font-size:1.1rem; border:1px solid var(--loss); padding:0.2rem 0.6rem; border-radius:4px; background:rgba(239,68,68,0.05); color:var(--loss); font-weight:bold;">
+                        ${likeIcon} <span style="font-size:0.95rem;">${post.likes}</span>
                     </button>
                 </div>
                 <div class="post-footer">
@@ -788,7 +788,8 @@ document.addEventListener('DOMContentLoaded', () => {
             card.style.marginBottom = '1rem';
             card.style.cursor = 'pointer';
             
-            let imgHtml = post.img ? `<img src="${post.img}" class="post-img" style="max-height:100px; object-fit:cover;" alt="인증샷">` : '';
+            let hasLiked = currentUser && post.likedBy && post.likedBy.includes(currentUser);
+            let likeIcon = hasLiked ? '❤️' : '♡';
             
             card.innerHTML = `
                 <div class="flex-align" style="margin-bottom:0.5rem;">
@@ -798,7 +799,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="post-body" style="font-size:0.9rem; margin-bottom:0.5rem; color:var(--text-main);">${post.text.replace(/\n/g, '<br>')}</div>
                 ${imgHtml}
                 <div class="flex-align" style="margin-top:0.5rem;">
-                    <span style="color:var(--loss); font-weight:700; font-size:0.9rem;">❤️ ${post.likes}</span>
+                    <span style="color:var(--loss); font-weight:700; font-size:1rem; border:1px solid var(--loss); padding:0.1rem 0.5rem; border-radius:4px; background:rgba(239,68,68,0.05);">
+                        ${likeIcon} ${post.likes}
+                    </span>
                 </div>
             `;
             card.addEventListener('click', () => openPostDetail(post.id));
@@ -819,7 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!post) return;
         
         let hasLiked = currentUser && post.likedBy.includes(currentUser);
-        let likeIcon = hasLiked ? '❤️' : '🤍';
+        let likeIcon = hasLiked ? '❤️' : '♡';
         
         let imgHtml = post.img ? `<img src="${post.img}" class="post-img" style="max-height: 400px; object-fit: contain;" alt="인증샷">` : '';
         
@@ -842,8 +845,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="post-body" style="font-size: 1.1rem; margin-bottom: 1rem;">${post.text.replace(/\n/g, '<br>')}</div>
             ${imgHtml}
             <div class="post-actions" style="margin-top:0.5rem; margin-bottom:1rem;">
-                <button class="btn-text btn-modal-like" data-id="${post.id}" style="font-size:1.1rem; border:1px solid var(--glass-border); padding:0.2rem 0.6rem; border-radius:4px; background:rgba(0,0,0,0.2);">
-                    ${likeIcon} <span style="font-size:0.9rem; color:var(--text-main);">${post.likes}</span>
+                <button class="btn-text btn-modal-like" data-id="${post.id}" style="font-size:1.1rem; border:1px solid var(--loss); padding:0.2rem 0.6rem; border-radius:4px; background:rgba(239,68,68,0.05); color:var(--loss); font-weight:bold;">
+                    ${likeIcon} <span style="font-size:0.95rem;">${post.likes}</span>
                 </button>
             </div>
             <hr style="border-top:1px solid var(--glass-border); margin-bottom:1rem;">
@@ -942,7 +945,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="post-body" style="font-size:1rem;color:var(--text-main); margin-bottom:1rem;">${post.text.replace(/\n/g, '<br>')}</div>
                 ${imgHtml}
-                <div style="margin-top:1rem; font-size:0.9rem; color:var(--loss);">❤️ ${post.likes || 0}</div>
+                <div style="margin-top:1rem; margin-bottom:0.5rem;">
+                    <span style="color:var(--loss); font-weight:700; font-size:1rem; border:1px solid var(--loss); padding:0.1rem 0.5rem; border-radius:4px; background:rgba(239,68,68,0.05);">
+                        ♡ ${post.likes || 0}
+                    </span>
+                </div>
                 <div class="post-footer" style="margin-top:1rem; border-top:1px solid var(--glass-border); padding-top:1rem;">
                     <div class="comments-list">
                         ${commentsHtml ? commentsHtml : '<div style="color:var(--text-muted); font-size:0.9rem; text-align:center;">아직 댓글이 없습니다.</div>'}
@@ -1016,21 +1023,80 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSubmitBlog = document.getElementById('btnSubmitBlog');
     const blogTitle = document.getElementById('blogTitle');
     const blogContent = document.getElementById('blogContent');
+    const blogImageInput = document.getElementById('blogImageInput');
+
+    if (blogImageInput) {
+        blogImageInput.addEventListener('change', () => {
+            if (blogImageInput.files.length > 0) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    blogContent.focus();
+                    document.execCommand('insertImage', false, e.target.result);
+                    
+                    // Add basic responsive styling to inserted images
+                    const imgs = blogContent.querySelectorAll('img');
+                    imgs.forEach(img => {
+                        if (!img.style.maxWidth) {
+                            img.style.maxWidth = '100%';
+                            img.style.borderRadius = '8px';
+                            img.style.display = 'block';
+                            img.style.marginTop = '0.5rem';
+                            img.style.marginBottom = '0.5rem';
+                        }
+                    });
+                };
+                reader.readAsDataURL(blogImageInput.files[0]);
+                blogImageInput.value = ''; // Reset input
+            }
+        });
+    }
+
+    function autoLinkTextNodes(node) {
+        if (node.nodeType === 3) { // Text node
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            if (urlRegex.test(node.nodeValue)) {
+                if (node.parentNode && node.parentNode.tagName === 'A') return;
+                
+                const span = document.createElement('span');
+                span.innerHTML = node.nodeValue.replace(urlRegex, '<a href="$1" target="_blank" style="color:var(--primary); text-decoration:underline;">$1</a>');
+                
+                while (span.firstChild) {
+                    node.parentNode.insertBefore(span.firstChild, node);
+                }
+                node.parentNode.removeChild(node);
+            }
+        } else if (node.nodeType === 1) { // Element node
+            if (node.tagName !== 'A' && node.tagName !== 'IMG' && node.tagName !== 'BUTTON') {
+                const children = Array.from(node.childNodes);
+                for (let i = 0; i < children.length; i++) {
+                    autoLinkTextNodes(children[i]);
+                }
+            }
+        }
+    }
 
     btnSubmitBlog.addEventListener('click', () => {
         if (currentUser !== 'admin') return;
         const title = blogTitle.value.trim();
-        const content = blogContent.value.trim();
-        if(!title || !content) return;
+        const contentHtml = blogContent.innerHTML.trim();
+        
+        // ensure not completely empty text or images
+        if(!title || (!blogContent.innerText.trim() && contentHtml.indexOf('<img') === -1)) return;
+
+        // Create a temporary div to parse and auto-link text safely
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = contentHtml;
+        autoLinkTextNodes(tempDiv);
+        const processedContent = tempDiv.innerHTML;
 
         blogPosts.unshift({
             id: Date.now(),
             title: title,
-            content: content,
+            content: processedContent,
             date: new Date().toLocaleString()
         });
         localStorage.setItem('gridCalcBlogPosts', JSON.stringify(blogPosts));
-        blogTitle.value = ''; blogContent.value = '';
+        blogTitle.value = ''; blogContent.innerHTML = '';
         renderBlogFeed();
     });
 
@@ -1048,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="blog-title">${b.title}</div>
                 <div class="post-date" style="margin-bottom:1rem;">관리자 | ${b.date}</div>
-                <div class="post-body" style="font-size:1rem;">${b.content.replace(/\n/g, '<br>')}</div>
+                <div class="post-body" style="font-size:1rem; overflow-wrap:anywhere;">${b.content}</div>
             `;
             list.appendChild(card);
         });
