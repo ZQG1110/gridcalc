@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="선입선출(FIFO) 기반 주식 수익 계산기 및 커뮤니티">
+    <title>GRIDCALC | 종합 주식 플랫폼</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+    <!-- html2canvas for screenshots -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body>
+    <!-- Background Elements -->
+    <div class="bg-shape shape1"></div>
+    <div class="bg-shape shape2"></div>
+
+    <!-- Global Header -->
+    <header class="main-header glass">
+        <div class="header-inner space-between">
+            <div class="logo" id="logoHome" style="cursor: pointer;">
+                <h1>GRID<span class="highlight">CALC</span></h1>
+            </div>
+            <nav class="main-nav">
+                <button class="nav-btn active" data-target="view-intro">그리드투자란</button>
+                <button class="nav-btn" data-target="view-simulator">시뮬레이터</button>
+                <button class="nav-btn" data-target="view-profit">수익인증</button>
+                <button class="nav-btn" data-target="view-blog">블로그</button>
+            </nav>
+            <div class="auth-section">
+                <!-- Logged Out -->
+                <button id="btnOpenLogin" class="btn-outline btn-sm">로그인</button>
+                <button id="btnOpenSignup" class="btn buy-btn btn-sm" style="margin-left: 0.5rem; padding: 0.4rem 0.8rem; width: auto;">회원가입</button>
+                <!-- Logged In -->
+                <div id="userInfo" class="hidden flex-align">
+                    <span id="labelUsername" class="user-label"></span>
+                    <button class="nav-btn" id="navMyPage" data-target="view-mypage" style="margin-left: 0.5rem; position: relative; padding: 0.3rem 0.6rem; font-size: 0.85rem; border: 1px solid var(--primary); color: var(--primary);">
+                        MY
+                        <span id="myPageNoti" style="display:none; position:absolute; top:-4px; right:-4px; width:8px; height:8px; background-color:var(--loss); border-radius:50%;"></span>
+                    </button>
+                    <button id="btnLogout" class="btn-text btn-sm" style="margin-left: 0.5rem;">로그아웃</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        
+        <!-- ==============================
+             VIEW 0: INTRO
+        ================================ -->
+        <main id="view-intro" class="view-section active">
+            <div class="view-header">
+                <h2>그리드투자란?</h2>
+                <p>위기를 기회로, 변동성을 수익으로 만드는 마법</p>
+            </div>
+            
+            <div class="card glass" style="max-width:800px; margin:0 auto; padding:2rem; line-height:1.7;">
+                <h3 style="color:var(--primary); font-size:1.3rem; margin-bottom:1rem;">📊 거치식 vs 그리드투자 : 하락장 수익 시뮬레이션</h3>
+                <p style="margin-bottom:1.5rem;">주가가 80,000원에서 50,000원까지 하락했다가 다시 80,000원 본전으로 돌아오는 긴 여정, 결과는 하늘과 땅 차이입니다.</p>
+
+                <div style="background:rgba(239, 68, 68, 0.1); border-left:4px solid var(--loss); padding:1rem; margin-bottom:1.5rem; border-radius:4px;">
+                    <h4 style="font-size:1.1rem; font-weight:700; color:white; margin-bottom:0.5rem;">1. 거치식 투자 (한 번에 1,000만 원 매수)</h4>
+                    <span style="display:block; color:var(--text-muted); font-weight:600; margin-bottom:0.5rem;">"본전까지 기다리는 고통의 시간"</span>
+                    <ul style="list-style:none; padding-left:0; color:var(--text-main);">
+                        <li>• <strong>투자 시작:</strong> 80,000원에 125주 매수 (총 1,000만 원)</li>
+                        <li>• <strong>하락 구간 (-37%):</strong> 주가가 50,000원까지 빠지는 동안 계좌는 -375만 원 손실을 기록합니다.</li>
+                        <li>• <strong>회복 구간:</strong> 주가가 다시 80,000원이 되었을 때 수익은 0원입니다.</li>
+                        <li style="margin-top:0.5rem; color:var(--loss);"><strong>결과:</strong> 수개월을 기다렸지만, 자산은 그대로 1,000만 원입니다.</li>
+                    </ul>
+                </div>
+
+                <div style="background:rgba(16, 185, 129, 0.1); border-left:4px solid var(--profit); padding:1rem; margin-bottom:2rem; border-radius:4px;">
+                    <h4 style="font-size:1.1rem; font-weight:700; color:white; margin-bottom:0.5rem;">2. 그리드 매매 (5% 하락 시마다 100만 원 매수)</h4>
+                    <span style="display:block; color:var(--text-muted); font-weight:600; margin-bottom:0.5rem;">"위기를 기회로, 변동성을 수익으로"</span>
+                    <p style="margin-bottom:0.5rem;">그리드 매매는 하락하는 동안 평단가를 낮추고, 반등할 때마다 익절을 반복합니다.</p>
+                    <ul style="list-style:none; padding-left:0; color:var(--text-main);">
+                        <li>• <strong>1차 하락 (8만→5만):</strong> 5% 빠질 때마다 100만 원씩 추가 매수 (평단가 급격히 하락)</li>
+                        <li>• <strong>바닥권 횡보 (3회 반복):</strong> 5만~7만 원 사이 오르내릴 때마다 사고팔기 무한 반복 <strong>(+135만 원)</strong></li>
+                        <li>• <strong>본전 회복 (8만 원):</strong> 저점에서 샀던 모든 물량이 5% 수익 구간에서 자동 익절 <strong>(+50만 원)</strong></li>
+                        <li style="margin-top:0.5rem; color:var(--profit);"><strong>결과:</strong> 주가가 제자리(8만 원)로 돌아왔을 뿐인데, 내 계좌에는 총 185만 원의 현금 수익이 쌓여 있습니다.</li>
+                        <li style="color:var(--profit); font-weight:bold;">최종 자산: 1,185만 원 (거치식 대비 18.5% 초과 수익)</li>
+                    </ul>
+                </div>
+
+                <h3 style="color:var(--secondary); font-size:1.3rem; margin-bottom:1rem;">💡 왜 그리드 매매인가요? 직접적인 차이점</h3>
+                <ol style="padding-left:1.2rem; color:var(--text-main); margin-bottom:2rem;">
+                    <li style="margin-bottom:0.5rem;"><strong>탈출 속도가 다릅니다:</strong> 거치식은 80,000원이 되어야 본전이지만, 그리드 매매는 평단가가 낮아져 65,000원만 되어도 이미 전체 계좌가 플러스로 돌아섭니다.</li>
+                    <li style="margin-bottom:0.5rem;"><strong>노는 돈이 일을 합니다:</strong> 주가가 박스권에 갇혀 지루하게 움직일 때, 거치식은 수익률 0%지만 그리드는 그 변동성을 먹고 자랍니다.</li>
+                    <li><strong>심리가 안정됩니다:</strong> 주가가 떨어지면 "싸게 살 기회"가 오고, 오르면 "수익 실현"이 됩니다. 어떤 방향이든 즐거운 투자가 가능합니다.</li>
+                </ol>
+
+                <div style="text-align:center; padding:1.5rem; background:var(--bg-dark); border:1px solid var(--glass-border); border-radius:8px;">
+                    <strong style="color:var(--primary); font-size:1.1rem;">"주식 시장의 80%는 횡보와 하락입니다."</strong><br>
+                    <span style="color:var(--text-muted); display:block; margin-top:0.5rem;">나머지 20%의 상승장만 기다리지 말고, 80%의 구간에서 수익을 만드는 그리드 매매를 시작하세요.</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- ==============================
+             VIEW 1: SIMULATOR
+        ================================ -->
+        <main id="view-simulator" class="view-section hidden">
+            <div class="view-header">
+                <h2>그리드 분할매매 시뮬레이터</h2>
+                <p>수수료를 반영한 정확한 선입선출 손익 계산</p>
+            </div>
+            
+            <header class="app-header">
+                <div class="top-dashboard glass">
+                    <div class="dash-item">
+                        <span class="dash-label">현재 평단가 (수수료제외)</span>
+                        <span class="dash-value" id="topAvgPrice">0<small>원</small></span>
+                    </div>
+                    <div class="dash-item">
+                        <span class="dash-label">총 매수수량</span>
+                        <span class="dash-value" id="topTotalQty">0<small>주</small></span>
+                    </div>
+                    <div class="dash-item">
+                        <span class="dash-label">총 투자금액 (수수료포함)</span>
+                        <span class="dash-value" id="topTotalInvest">0<small>원</small></span>
+                    </div>
+                    <div class="dash-item highlight-box">
+                        <span class="dash-label">매매 수수료 (%)</span>
+                        <div class="current-price-input">
+                            <input type="number" id="feeRate" value="0.015" step="0.001" min="0">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+                    <div class="dash-item highlight-box" style="flex: 1; min-width: 250px;">
+                        <span class="dash-label">현재가 입력하여 손익 확인</span>
+                        <div class="current-price-input">
+                            <input type="number" id="currentPrice" placeholder="현재가 입력..." min="0">
+                            <span class="unit">원</span>
+                        </div>
+                        <div class="current-return" id="currentReturn">
+                            <span class="return-rate">0.00%</span>
+                            <span class="return-amount">0원</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Reset Button placed effectively -->
+                <div class="flex-align" style="justify-content: flex-end; margin-top: -1rem; margin-bottom: 0.5rem; padding-right: 0.5rem;">
+                    <button type="button" id="btnReset" class="btn-text btn-sm" style="color: var(--loss); border: 1px solid var(--loss); background: rgba(239, 68, 68, 0.1);">초기화</button>
+                </div>
+            </header>
+
+            <div class="dashboard">
+                <!-- Left Column: Inputs -->
+                <section class="panel input-section">
+                    <!-- Buy Card -->
+                    <div class="card glass">
+                        <div class="card-header space-between">
+                            <h2><i class="icon">📈</i> 매수 입력</h2>
+                        </div>
+                        <form id="buyForm" class="form-layout">
+                            <div class="input-group">
+                                <label for="buyPrice">매수 단가</label>
+                                <div class="input-wrapper">
+                                    <input type="number" id="buyPrice" required placeholder="0" min="1">
+                                    <span class="unit">원</span>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label for="buyAmount">매수 금액</label>
+                                <div class="input-wrapper">
+                                    <input type="number" id="buyAmount" required placeholder="0" min="1" step="1">
+                                    <span class="unit">원</span>
+                                </div>
+                                <div class="qty-preview" id="qtyPreview">예상 수량: <span>0</span>주</div>
+                            </div>
+                            
+                            <!-- 5% Drop Suggestion -->
+                            <div id="dropSuggestion" class="suggestion-box hidden">
+                                <p class="suggestion-title">💡 다음 매수 타점 (이전 매수가 대비 -5%)</p>
+                                <button type="button" id="btnDropBuy" class="btn-suggestion">
+                                    단가: <strong id="dropPrice">0</strong>원 | 금액: <span id="dropAmount">0</span>원
+                                </button>
+                            </div>
+                            <button type="submit" class="btn buy-btn">
+                                <span>매수 내역 추가 (수수료 자동반영)</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Sell Card -->
+                    <div class="card glass">
+                        <div class="card-header">
+                            <h2><i class="icon">📉</i> 매도 입력</h2>
+                        </div>
+                        <form id="sellForm" class="form-layout">
+                            <div class="input-group">
+                                <label for="sellPrice">매도 단가</label>
+                                <div class="input-wrapper">
+                                    <input type="number" id="sellPrice" required placeholder="0" min="1">
+                                    <span class="unit">원</span>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label for="sellQty">매도 수량</label>
+                                <div class="input-wrapper">
+                                    <input type="number" id="sellQty" required placeholder="0" min="1">
+                                    <span class="unit">주</span>
+                                </div>
+                                <div class="quick-actions">
+                                    <button type="button" id="btnMaxQty" class="btn-sm">전량 매도</button>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn sell-btn">
+                                <span>매도 실행 및 손익 확인</span>
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Right Column: Dashboard -->
+                <section class="panel data-section">
+                    <!-- Current Holdings -->
+                    <div class="card glass">
+                        <div class="card-header space-between">
+                            <h2>보유 잔고 (차수별 목록)</h2>
+                        </div>
+                        <div class="table-container">
+                            <table id="holdingsTable">
+                                <thead>
+                                    <tr>
+                                        <th>차수</th>
+                                        <th>단가 / 수량</th>
+                                        <th>투자원금(수수료포함)</th>
+                                        <th>5% 상승 목표</th>
+                                        <th>동작</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="holdingsBody">
+                                    <tr class="empty-row"><td colspan="5">매수 내역이 없습니다. (로그인 시 자동 저장)</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Sell History & Profit -->
+                    <div class="card glass" id="profitHistoryCard">
+                        <div class="card-header space-between" style="border-bottom:none; padding-bottom: 0.5rem;">
+                            <h2>누적 실현 손익 (매도 내역)</h2>
+                            <div class="flex-align">
+                                <button type="button" id="btnScreenshot" class="btn-outline btn-sm">📸 스크린샷 캡쳐</button>
+                            </div>
+                        </div>
+                        <div class="table-container screenshot-target" id="captureTarget" style="padding-top:1rem;">
+                            <div class="profit-summary glass" style="display:flex; justify-content:space-around; align-items:center; padding:1.5rem; margin-bottom:1.5rem; background:#ffffff; border-radius:12px; border: 1px solid var(--glass-border);">
+                                <div class="dash-item" style="text-align:center;">
+                                    <span class="dash-label">총 매도금액</span>
+                                    <span class="dash-value" id="historyTotalSell">0<small>원</small></span>
+                                </div>
+                                <div class="dash-item" style="text-align:center;">
+                                    <span class="dash-label">총 실현손익</span>
+                                    <span class="dash-value" id="totalRealizedProfit">0<small>원</small></span>
+                                </div>
+                                <div class="dash-item" style="text-align:center;">
+                                    <span class="dash-label">총 수익률</span>
+                                    <span class="dash-value" id="historyTotalYield">0.00<small>%</small></span>
+                                </div>
+                            </div>
+                            <table id="historyTable" style="margin-top:0;">
+                                <thead>
+                                    <tr>
+                                        <th>순번</th>
+                                        <th>매도 단가</th>
+                                        <th>수량</th>
+                                        <th>실현 손익</th>
+                                        <th>수익률</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyBody">
+                                    <tr class="empty-row"><td colspan="5">매도 내역이 없습니다.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- ==============================
+             VIEW 2: PROFIT VERIFICATION
+        ================================ -->
+        <main id="view-profit" class="view-section hidden">
+            <div class="view-header">
+                <h2>수익인증 타임라인</h2>
+                <p>스크린샷과 함께 실현 손익을 자랑해보세요!</p>
+            </div>
+            
+            <div class="dashboard">
+                <!-- Left: Hot Posts -->
+                <section class="panel input-section">
+                    <div class="card glass">
+                        <div class="card-header">
+                            <h2>🔥 HOT 게시물</h2>
+                            <span class="tooltip" style="margin-left:0;">최근 24시간, 좋아요 순 (최대 3개)</span>
+                        </div>
+                        <div id="hotPostsList" style="padding: 1.5rem;">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Right: Posts Feed -->
+                <section class="panel data-section">
+                    <div class="post-form-container glass card" style="margin-bottom: 2rem;">
+                        <textarea id="postContent" rows="3" placeholder="이번 주의 짜릿한 수익/손실 스토리를 들려주세요 (로그인 필요)" class="post-textarea"></textarea>
+                        <div class="post-form-actions">
+                            <div class="file-upload-wrapper">
+                                <input type="file" id="postImage" accept="image/*" class="file-input">
+                                <label for="postImage" class="btn-sm btn-outline">이미지 첨부</label>
+                                <span id="postImageName" class="file-name"></span>
+                            </div>
+                            <button id="btnSubmitPost" class="btn buy-btn mini-btn">게시하기</button>
+                        </div>
+                    </div>
+
+                    <!-- Feed List -->
+                    <div id="profitFeedList" class="feed-list">
+                        <!-- JS will inject posts here -->
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- ==============================
+             VIEW 3: BLOG
+        ================================ -->
+        <main id="view-blog" class="view-section hidden">
+            <div class="view-header">
+                <h2>투자 정보 블로그</h2>
+                <p>관리자가 제공하는 유익한 투자 정보와 시장 시황</p>
+            </div>
+
+            <div id="blogAdminPanel" class="post-form-container glass card hidden" style="border-color: var(--primary);">
+                <div style="margin-bottom: 1rem; color:var(--primary); font-weight:700;">[관리자 전용 글쓰기]</div>
+                <input type="text" id="blogTitle" placeholder="블로그 제목" class="blog-input" style="margin-bottom:1rem; width:100%;">
+                <textarea id="blogContent" rows="8" placeholder="마크다운이나 플레인 텍스트로 정보성 글을 작성하세요." class="post-textarea"></textarea>
+                <div class="post-form-actions" style="margin-top: 1rem; justify-content:flex-end;">
+                    <button id="btnSubmitBlog" class="btn buy-btn mini-btn">발행하기</button>
+                </div>
+            </div>
+
+            <!-- Blog Feed -->
+            <div id="blogList" class="feed-list">
+                <!-- JS will inject blogs here -->
+            </div>
+        </main>
+
+        <!-- ==============================
+             VIEW 4: MY PAGE
+        ================================ -->
+        <main id="view-mypage" class="view-section hidden">
+            <div class="view-header">
+                <h2>마이페이지</h2>
+                <p>내가 작성한 수익인증 글을 관리하세요</p>
+            </div>
+            <div class="card glass" style="padding: 2rem;">
+                <div id="myPostsList" class="feed-list">
+                    <!-- JS will inject user's posts here -->
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <p>ⓒ 2026 GRIDCALC. All Rights Reserved. | 누구나 쉽게 가입하고 기록할 수 있습니다.<br>민감한 내용이나 개인정보는 올리지 마세요.</p>
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content glass login-box">
+            <span class="close-btn login-close">&times;</span>
+            <h2>GRIDCALC 로그인</h2>
+            <p class="login-desc">아이디와 비밀번호를 입력하면 진행 상황이 저장됩니다.<br>관리자로 접속하려면 <strong>admin</strong> (비밀번호 자유) 을 입력하세요.</p>
+            <form id="loginForm" class="form-layout" style="padding:0; margin-top:1.5rem;">
+                <input type="text" id="loginUsername" placeholder="사용자 닉네임 입력" required class="modal-input">
+                <input type="password" id="loginPassword" placeholder="비밀번호 입력" required class="modal-input">
+                <button type="submit" class="btn buy-btn" style="margin-top:1rem;">시작하기</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Hot Post Detail Modal -->
+    <div id="postDetailModal" class="modal">
+        <div class="modal-content glass" style="max-width:600px; text-align:left;">
+            <span class="close-btn detail-close">&times;</span>
+            <div id="postDetailContent" style="max-height: 75vh; overflow-y: auto; padding-right: 15px;"></div>
+        </div>
+    </div>
+
+    <!-- Screenshot Result Modal -->
+    <div id="screenshotModal" class="modal">
+        <div class="modal-content glass" style="max-width:600px; text-align:center;">
+            <span class="close-btn shot-close">&times;</span>
+            <h2>캡쳐 완료!</h2>
+            <p style="margin-bottom: 1rem; color:var(--text-muted); font-size:0.9rem;">버튼을 누르거나 이미지를 우클릭하여 저장할 수 있습니다.</p>
+            <div id="screenshotContainer" style="margin-bottom:1.5rem; background:#000; border-radius:8px; overflow:hidden;"></div>
+            <a id="btnDownloadShot" class="btn buy-btn" style="display:block; margin-bottom:0.5rem; text-decoration:none;">이미지로 저장하기</a>
+            <button class="btn btn-outline shot-close" type="button">닫기</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
