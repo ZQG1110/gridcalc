@@ -1081,8 +1081,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = blogTitle.value.trim();
         const contentHtml = blogContent.innerHTML.trim();
         
+        // Strip tags to get pure text for empty check
+        const tempCheck = document.createElement('div');
+        tempCheck.innerHTML = contentHtml;
+        const pureText = tempCheck.textContent.trim();
+        
         // ensure not completely empty text or images
-        if(!title || (!blogContent.innerText.trim() && contentHtml.indexOf('<img') === -1)) return;
+        if(!title || (!pureText && contentHtml.indexOf('<img') === -1)) return;
 
         // Create a temporary div to parse and auto-link text safely
         const tempDiv = document.createElement('div');
