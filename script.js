@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastSeenComments = JSON.parse(localStorage.getItem('gridCalcNoti') || '{}');
 
     // --- Navigation & Core Elements ---
-    const navBtns = document.querySelectorAll('.nav-btn');
+    const navBtns = document.querySelectorAll('.main-nav .nav-btn');
     const viewSections = document.querySelectorAll('.view-section');
     const btnOpenLogin = document.getElementById('btnOpenLogin');
     const btnOpenSignup = document.getElementById('btnOpenSignup');
@@ -91,9 +91,10 @@ document.addEventListener('DOMContentLoaded', () => {
     navBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
             navBtns.forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
+            e.currentTarget.classList.add('active');
             
-            const targetId = e.target.dataset.target;
+            const targetId = e.currentTarget.dataset.target;
+            if (!targetId) return;
             viewSections.forEach(v => {
                 v.classList.remove('active');
                 v.classList.add('hidden');
