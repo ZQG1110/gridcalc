@@ -790,6 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let hasLiked = currentUser && post.likedBy && post.likedBy.includes(currentUser);
             let likeIcon = '❤️';
+            let imgHtml = post.img ? `<img src="${post.img}" class="post-img" style="max-height:100px; object-fit:cover;" alt="인증샷">` : '';
             
             card.innerHTML = `
                 <div class="flex-align" style="margin-bottom:0.5rem;">
