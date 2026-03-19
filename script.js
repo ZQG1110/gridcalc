@@ -75,36 +75,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Supabase Sync & Init ---
     async function initApp() {
+        // 초기 UI 상태 설정
+        updateAuthUI();
+        
+        // 초기 세션 확인
         const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session) {
-            currentUser = session.user.email.split('@')[0]; // 임시 닉네임
+        if (session && session.user) {
+            currentUser = session.user.email.split('@')[0];
             currentUserId = session.user.id;
+        } else {
+            currentUser = null;
+            currentUserId = null;
         }
 
-        updateAuthUI();
-        await Promise.all([
+        updateAuthUI(); // 세션 확인 후 UI 다시 업데이트
+        
+        // 데이터 병렬 로드 (속도 최적화)
+        Promise.all([
             fetchPosts(),
             fetchBlogPosts(),
-            loadSimulatorState()
-        ]);
-        updateSimulatorUI();
-        checkNotifications();
+            currentUserId ? loadSimulatorState() : Promise.resolve()
+        ]).then(() => {
+            updateSimulatorUI();
+            checkNotifications();
+        });
     }
 
     initApp();
 
     // Supabase Auth 상태 변경 리스너
         supabaseClient.auth.onAuthStateChange((event, session) => {
-            console.log("Auth Event:", event, session);
+            console.log("Auth Event:", event);
+            
+            // 로그인/로그아웃 시 상태 변경
             if (session && session.user) {
-                currentUser = session.user.email.split('@')[0];
-                currentUserId = session.user.id;
-            } else {
+                const newUser = session.user.email.split('@')[0];
+                const newId = session.user.id;
+                
+                // 실제로 유저가 바뀌었을 때만 리로딩 (불필요한 요청 방지)
+                if (currentUserId !== newId) {
+                    currentUser = newUser;
+                    currentUserId = newId;
+                    updateAuthUI();
+                    loadSimulatorState().then(updateSimulatorUI);
+                }
+            } else if (!session && currentUserId !== null) {
                 currentUser = null;
                 currentUserId = null;
+                updateAuthUI();
+                updateSimulatorUI(); 
             }
-            updateAuthUI();
-            loadSimulatorState().then(updateSimulatorUI);
         });
 
     // --- Auth & Routing ---
