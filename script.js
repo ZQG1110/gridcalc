@@ -213,6 +213,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (username && password) {
             try {
+                if (!supabaseClient) {
+                    throw new Error('서버 연결 라이브러리가 로드되지 않았습니다. 인터넷 상태를 확인해 주세요.');
+                }
                 if (isSignupMode) {
                     if (username === 'admin') { alert('admin은 시스템 예약 계정입니다.'); return; }
                     const { data, error } = await supabaseClient.auth.signUp({ email, password });
@@ -232,7 +235,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 loginModal.classList.remove('show');
                 // 상태 업데이트는 onAuthStateChange 리스너에서 처리됨
             } catch (err) {
-                alert(`오류 발생: ${err.message}`);
+                console.error("Auth Error Detail:", err);
+                let msg = '알 수 없는 오류가 발생했습니다.';
+                if (typeof err === 'string') msg = err;
+                else if (err.message) msg = err.message;
+                else if (err.error_description) msg = err.error_description;
+                else msg = JSON.stringify(err);
+
+                if (msg === '{}') msg = '네트워크 연결 또는 서버 설정 오류입니다. (관리자 확인 필요)';
+                
+                alert(`오류 발생: ${msg}`);
             }
         }
     });
