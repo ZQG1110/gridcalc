@@ -1,6 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Supabase Config ---
+    const SUPABASE_URL = 'https://doqokgxyvmtwqdbypsls.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_cxc9U_-f6iaTvoW_OXx74w_q-TGhluz';
+    // CDN을 사용하면 전역 supabase 객체를 통해 createClient를 호출합니다.
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     // --- State ---
-    let currentUser = localStorage.getItem('gridCalcUser') || null;
+    let currentUser = null; 
+    let currentUserId = null; 
     
     // Simulator State
     let holdings = []; 
@@ -9,15 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedSellBatchId = null;
 
     // Social & Blog State
-    let profitPosts = JSON.parse(localStorage.getItem('gridCalcProfitPosts') || '[]');
-    let blogPosts = JSON.parse(localStorage.getItem('gridCalcBlogPosts') || '[]');
-    // User Storage for auth check
-    let userList = JSON.parse(localStorage.getItem('gridCalcUsers') || '[]');
-    let isSignupMode = false;
-    
-    // Notifications State
-    // Format: { postId: lastSeenCommentCount }
-    let lastSeenComments = JSON.parse(localStorage.getItem('gridCalcNoti') || '{}');
+    let profitPosts = [];
+    let blogPosts = [];
+    let lastSeenComments = {};
 
     // --- Navigation & Core Elements ---
     const navBtns = document.querySelectorAll('.main-nav .nav-btn');
@@ -62,15 +63,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const holdingsBody = document.getElementById('holdingsBody');
     const historyBody = document.getElementById('historyBody');
 
-    // --- Init ---
-    updateAuthUI();
-    loadSimulatorState();
-    updateSimulatorUI();
-    renderProfitFeed();
-    renderHotFeed();
-    renderMyPage();
-    renderBlogFeed();
-    checkNotifications();
+    // --- Supabase Sync & Init ---
+    async function initApp() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            currentUser = session.user.email.split('@')[0]; // 임시 닉네임
+            currentUserId = session.user.id;
+        }
+
+        updateAuthUI();
+        await Promise.all([
+            fetchPosts(),
+            fetchBlogPosts(),
+            loadSimulatorState()
+        ]);
+        updateSimulatorUI();
+        checkNotifications();
+    }
+
+    initApp();
+
+    // Supabase Auth 상태 변경 리스너
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            currentUser = session.user.email.split('@')[0];
+            currentUserId = session.user.id;
+        } else {
+            currentUser = null;
+            currentUserId = null;
+        }
+        updateAuthUI();
+        loadSimulatorState().then(updateSimulatorUI);
+    });
 
     // --- Auth & Routing ---
     const logoHome = document.getElementById('logoHome');
@@ -147,53 +171,41 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => loginModal.classList.remove('show'));
     });
 
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = loginUsername.value.trim();
         const password = loginPassword.value.trim();
         
+        // Supabase Auth는 이메일을 기본으로 합니다. 
+        // 편의를 위해 입력된 닉네임을 이메일 형식으로 변환하여 사용합니다.
+        const email = username.includes('@') ? username : `${username}@gridcalc.usr`;
+
         if (username && password) {
-            if (isSignupMode) {
-                if (username === 'admin') { alert('admin은 시스템 예약 계정입니다.'); return; }
-                if (userList.find(u => u.username === username)) { alert('이미 존재하는 계정입니다.'); return; }
-                userList.push({ username, password });
-                localStorage.setItem('gridCalcUsers', JSON.stringify(userList));
-                alert('회원가입이 완료되었습니다.');
-            } else {
-                if (username === 'admin') {
-                    if (password !== 'qaazsx1110!') { alert('관리자 비밀번호가 틀렸습니다.'); return; }
+            try {
+                if (isSignupMode) {
+                    if (username === 'admin') { alert('admin은 시스템 예약 계정입니다.'); return; }
+                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                    if (error) throw error;
+                    alert('회원가입이 완료되었습니다. 이메일 인증이 설정되어 있다면 확인이 필요할 수 있습니다.');
                 } else {
-                    const u = userList.find(u => u.username === username);
-                    if (!u) { alert('존재하지 않는 계정입니다. 회원가입을 먼저 진행해주세요.'); return; }
-                    if (u.password !== password) { alert('비밀번호가 틀렸습니다.'); return; }
+                    if (username === 'admin' && password !== 'qaazsx1110!') {
+                        alert('관리자 비밀번호가 틀렸습니다.'); return;
+                    }
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
                 }
+                
+                loginModal.classList.remove('show');
+                // 상태 업데이트는 onAuthStateChange 리스너에서 처리됨
+            } catch (err) {
+                alert(`오류 발생: ${err.message}`);
             }
-            
-            currentUser = username;
-            localStorage.setItem('gridCalcUser', currentUser);
-            loginModal.classList.remove('show');
-            updateAuthUI();
-            loadSimulatorState();
-            updateSimulatorUI();
-            renderProfitFeed();
-            renderHotFeed();
-            renderMyPage();
-            checkNotifications();
         }
     });
 
-    btnLogout.addEventListener('click', () => {
-        currentUser = null;
-        localStorage.removeItem('gridCalcUser');
-        updateAuthUI();
-        loadSimulatorState();
-        updateSimulatorUI();
-        renderProfitFeed();
-        renderHotFeed();
-        renderMyPage();
-        checkNotifications();
-        
-        // redirect to intro if in mypage
+    btnLogout.addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        // 리디렉션 로직
         const activeNav = document.querySelector('.nav-btn.active');
         if (activeNav && activeNav.dataset.target === 'view-mypage') {
             document.querySelector('[data-target="view-intro"]').click();
@@ -208,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
             navMyPage.classList.remove('hidden');
             labelUsername.textContent = currentUser + (currentUser === 'admin' ? ' (관리자)' : '');
             
-            if (currentUser === 'admin') {
+            if (currentUser === 'admin' || currentUser.startsWith('admin')) {
                 document.getElementById('blogAdminPanel').classList.remove('hidden');
             } else {
                 document.getElementById('blogAdminPanel').classList.add('hidden');
@@ -243,26 +255,40 @@ document.addEventListener('DOMContentLoaded', () => {
         notiSpan.style.display = hasNew ? 'block' : 'none';
     }
 
-    // --- Simulator Logic ---
-    function loadSimulatorState() {
-        const key = currentUser ? `gridCalcState_${currentUser}` : 'gridCalcState_anon';
-        const d = localStorage.getItem(key);
-        if (d) {
-            try {
-                const p = JSON.parse(d);
-                holdings = p.holdings || [];
-                sellHistory = p.sellHistory || [];
-                idSeq = p.idSeq || 1;
-                if(p.feeRate !== undefined) feeRateInput.value = p.feeRate;
-            } catch(e) {}
+    // --- Simulator Logic (Supabase) ---
+    async function loadSimulatorState() {
+        if (!currentUserId) {
+            // 로그인 상태가 아니면 초기화
+            holdings = []; sellHistory = []; idSeq = 1;
+            return;
+        }
+        
+        const { data, error } = await supabaseClient
+            .from('simulator_states')
+            .select('data')
+            .eq('user_id', currentUserId)
+            .single();
+
+        if (data && data.data) {
+            const p = data.data;
+            holdings = p.holdings || [];
+            sellHistory = p.sellHistory || [];
+            idSeq = p.idSeq || 1;
+            if(p.feeRate !== undefined) feeRateInput.value = p.feeRate;
         } else {
             holdings = []; sellHistory = []; idSeq = 1;
         }
     }
 
-    function saveSimulatorState() {
-        const key = currentUser ? `gridCalcState_${currentUser}` : 'gridCalcState_anon';
-        localStorage.setItem(key, JSON.stringify({holdings, sellHistory, idSeq, feeRate: feeRateInput.value}));
+    async function saveSimulatorState() {
+        if (!currentUserId) return; // 로그인 필수
+
+        const stateData = {holdings, sellHistory, idSeq, feeRate: feeRateInput.value};
+        const { error } = await supabaseClient
+            .from('simulator_states')
+            .upsert({ user_id: currentUserId, data: stateData, updated_at: new Date() });
+        
+        if (error) console.error('상태 저장 실패:', error);
     }
 
     feeRateInput.addEventListener('input', () => {
@@ -633,22 +659,71 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function addProfitPost(text, imgData) {
-        profitPosts.unshift({
-            id: Date.now(),
-            user: currentUser,
-            text: text,
-            img: imgData,
-            date: new Date().toLocaleString(),
-            likes: 0,
-            likedBy: [],
-            timestamp: Date.now(),
-            comments: []
-        });
-        localStorage.setItem('gridCalcProfitPosts', JSON.stringify(profitPosts));
-        postContent.value = ''; postImage.value = ''; postImageName.textContent = '';
-        renderProfitFeed();
-        renderMyPage();
+    async function addProfitPost(text, imgData) {
+        if (!currentUserId) return;
+
+        const newPost = {
+            user_id: currentUserId,
+            username: currentUser,
+            content: text,
+            image_url: imgData, // 실제 구현 시 Supabase Storage 업로드 로직 추가 권장
+            likes_count: 0,
+            created_at: new Date()
+        };
+
+        const { data, error } = await supabaseClient
+            .from('posts')
+            .insert([newPost])
+            .select();
+
+        if (error) {
+            alert('인증글 저장 실패: ' + error.message);
+        } else {
+            postContent.value = ''; postImage.value = ''; postImageName.textContent = '';
+            await fetchPosts(); // 다시 불러오기
+            renderMyPage();
+        }
+    }
+
+    async function fetchPosts() {
+        const { data, error } = await supabaseClient
+            .from('posts')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (data) {
+            profitPosts = data.map(p => ({
+                id: p.id,
+                user: p.username,
+                text: p.content,
+                img: p.image_url,
+                date: new Date(p.created_at).toLocaleString(),
+                likes: p.likes_count || 0,
+                likedBy: [], // 좋아요 상세 로직은 추가 테이블 필요
+                comments: []
+            }));
+            renderProfitFeed();
+            renderHotFeed();
+        }
+    }
+
+    async function fetchBlogPosts() {
+        // blog_posts 테이블이 있다고 가정 (SQL 계획서 포함)
+        const { data, error } = await supabaseClient
+            .from('blog_posts')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (data) {
+            blogPosts = data.map(b => ({
+                id: b.id,
+                title: b.title,
+                content: b.content,
+                img: b.image_url,
+                date: new Date(b.created_at).toLocaleDateString()
+            }));
+            renderBlogFeed();
+        }
     }
 
     function renderProfitFeed() {
@@ -1076,34 +1151,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    btnSubmitBlog.addEventListener('click', () => {
-        if (currentUser !== 'admin') return;
+    btnSubmitBlog.addEventListener('click', async () => {
+        if (!currentUser || !currentUser.startsWith('admin')) return;
         const title = blogTitle.value.trim();
         const contentHtml = blogContent.innerHTML.trim();
         
-        // Strip tags to get pure text for empty check
         const tempCheck = document.createElement('div');
         tempCheck.innerHTML = contentHtml;
         const pureText = tempCheck.textContent.trim();
         
-        // ensure not completely empty text or images
         if(!title || (!pureText && contentHtml.indexOf('<img') === -1)) return;
 
-        // Create a temporary div to parse and auto-link text safely
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = contentHtml;
         autoLinkTextNodes(tempDiv);
         const processedContent = tempDiv.innerHTML;
 
-        blogPosts.unshift({
-            id: Date.now(),
-            title: title,
-            content: processedContent,
-            date: new Date().toLocaleString()
-        });
-        localStorage.setItem('gridCalcBlogPosts', JSON.stringify(blogPosts));
-        blogTitle.value = ''; blogContent.innerHTML = '';
-        renderBlogFeed();
+        const { error } = await supabaseClient
+            .from('blog_posts')
+            .insert([{
+                title: title,
+                content: processedContent,
+                author_id: currentUserId,
+                created_at: new Date()
+            }]);
+
+        if (error) {
+            alert('블로그 저장 실패: ' + error.message);
+        } else {
+            blogTitle.value = ''; blogContent.innerHTML = '';
+            await fetchBlogPosts();
+        }
     });
 
     function renderBlogFeed() {
