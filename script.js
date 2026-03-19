@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Supabase Auth는 이메일을 기본으로 합니다. 
         // 편의를 위해 입력된 닉네임을 이메일 형식으로 변환하여 사용합니다.
-        const email = username.includes('@') ? username : `${username}@gridcalc.usr`;
+        const email = username.includes('@') ? username : `${username}@gridcalc.com`;
 
         if (username && password) {
             try {
