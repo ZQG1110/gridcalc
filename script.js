@@ -199,9 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (error) throw error;
                     alert('회원가입이 완료되었습니다. 이메일 인증이 설정되어 있다면 확인이 필요할 수 있습니다.');
                 } else {
-                    if (username === 'admin' && password !== 'qaazsx1110!') {
-                        alert('관리자 비밀번호가 틀렸습니다.'); return;
-                    }
+                    // 관리자 하드코딩 체크 삭제 - Supabase 서버에서 직접 검증함
                     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) {
                         if (error.message.includes('Invalid login credentials')) {
