@@ -207,45 +207,78 @@ document.addEventListener('DOMContentLoaded', () => {
         const username = loginUsername.value.trim();
         const password = loginPassword.value.trim();
         
+        if (!username || !password) return;
+
         // Supabase Auth는 이메일을 기본으로 합니다. 
         // 편의를 위해 입력된 닉네임을 이메일 형식으로 변환하여 사용합니다.
-        const email = username.includes('@') ? username : `${username}@gridcalc.org`;
+        const email = username.includes('@') ? username : `${username}@gridcalc.com`;
 
-        if (username && password) {
-            try {
-                if (!supabaseClient) {
-                    throw new Error('서버 연결 라이브러리가 로드되지 않았습니다. 인터넷 상태를 확인해 주세요.');
+        try {
+            if (!supabaseClient) {
+                throw new Error('서버 연결 라이브러리가 로드되지 않았습니다. 인터넷 상태를 확인해 주세요.');
+            }
+
+            if (isSignupMode) {
+                // 1. 회원가입 모드
+                if (username === 'admin') { 
+                    alert('admin은 시스템 예약 계정입니다.'); 
+                    return; 
                 }
-                if (isSignupMode) {
-                    if (username === 'admin') { alert('admin은 시스템 예약 계정입니다.'); return; }
-                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
-                    if (error) throw error;
-                    alert('회원가입이 완료되었습니다. 이메일 인증이 설정되어 있다면 확인이 필요할 수 있습니다.');
-                } else {
-                    // 관리자 하드코딩 체크 삭제 - Supabase 서버에서 직접 검증함
-                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                    if (error) {
-                        if (error.message.includes('Invalid login credentials')) {
-                            throw new Error('아이디 또는 비밀번호가 일치하지 않습니다. (관리자 계정은 대시보드에서 먼저 생성해야 합니다)');
-                        }
-                        throw error;
+                if (password.length < 6) {
+                    alert('비밀번호는 최소 6자 이상이어야 합니다.');
+                    return;
+                }
+
+                const { data, error } = await supabaseClient.auth.signUp({ 
+                    email, 
+                    password,
+                    options: {
+                        data: { display_name: username } 
                     }
+                });
+
+                if (error) {
+                    if (error.message.includes('already registered')) {
+                        throw new Error('이미 존재하는 계정입니다. 로그인으로 진행해 주세요.');
+                    }
+                    throw error;
+                }
+
+                alert('회원가입이 완료되었습니다! 이제 로그인을 시도해 주세요.');
+                isSignupMode = false;
+                document.querySelector('.login-box h2').textContent = 'GRIDCALC 로그인';
+                document.querySelector('#loginForm button').textContent = '시작하기';
+                loginPassword.value = '';
+                // 가입 직후에는 로그인을 유도 (이메일 인증 OFF 시 자동 로그인도 가능하지만 안전을 위해 안내)
+            } else {
+                // 2. 로그인 모드
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                
+                if (error) {
+                    if (error.message.includes('Invalid login credentials')) {
+                        throw new Error('아이디 또는 비밀번호가 일치하지 않습니다. (관리자 계정은 대시보드에서 먼저 생성해야 합니다)');
+                    }
+                    if (error.message.includes('Email not confirmed')) {
+                        throw new Error('이메일 인증이 필요합니다. (Supabase 대시보드에서 "Confirm Email" 기능을 끄시면 인증 없이 바로 사용 가능합니다)');
+                    }
+                    throw error;
                 }
                 
                 loginModal.classList.remove('show');
-                // 상태 업데이트는 onAuthStateChange 리스너에서 처리됨
-            } catch (err) {
-                console.error("Auth Error Detail:", err);
-                let msg = '알 수 없는 오류가 발생했습니다.';
-                if (typeof err === 'string') msg = err;
-                else if (err.message) msg = err.message;
-                else if (err.error_description) msg = err.error_description;
-                else msg = JSON.stringify(err);
-
-                if (msg === '{}') msg = '네트워크 연결 또는 서버 설정 오류입니다. (관리자 확인 필요)';
-                
-                alert(`오류 발생: ${msg}`);
             }
+            
+            // 상태 업데이트는 onAuthStateChange 리스너에서 처리됨
+        } catch (err) {
+            console.error("Auth Error Detail:", err);
+            let msg = '알 수 없는 오류가 발생했습니다.';
+            if (typeof err === 'string') msg = err;
+            else if (err.message) msg = err.message;
+            else if (err.error_description) msg = err.error_description;
+            else msg = JSON.stringify(err);
+
+            if (msg === '{}' || msg === 'undefined') msg = '서버 설정 오류 또는 네트워크 문제입니다. (비밀번호 6자 이상 확인 및 Supabase 설정 확인 필요)';
+            
+            alert(`오류 발생: ${msg}`);
         }
     });
 
