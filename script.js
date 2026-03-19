@@ -94,17 +94,18 @@ document.addEventListener('DOMContentLoaded', () => {
     initApp();
 
     // Supabase Auth 상태 변경 리스너
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-        if (session) {
-            currentUser = session.user.email.split('@')[0];
-            currentUserId = session.user.id;
-        } else {
-            currentUser = null;
-            currentUserId = null;
-        }
-        updateAuthUI();
-        loadSimulatorState().then(updateSimulatorUI);
-    });
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            console.log("Auth Event:", event, session);
+            if (session && session.user) {
+                currentUser = session.user.email.split('@')[0];
+                currentUserId = session.user.id;
+            } else {
+                currentUser = null;
+                currentUserId = null;
+            }
+            updateAuthUI();
+            loadSimulatorState().then(updateSimulatorUI);
+        });
 
     // --- Auth & Routing ---
     const logoHome = document.getElementById('logoHome');
@@ -202,7 +203,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         alert('관리자 비밀번호가 틀렸습니다.'); return;
                     }
                     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                    if (error) throw error;
+                    if (error) {
+                        if (error.message.includes('Invalid login credentials')) {
+                            throw new Error('아이디 또는 비밀번호가 일치하지 않습니다. (관리자 계정은 대시보드에서 먼저 생성해야 합니다)');
+                        }
+                        throw error;
+                    }
                 }
                 
                 loginModal.classList.remove('show');
