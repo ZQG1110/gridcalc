@@ -831,16 +831,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.querySelectorAll('.btn-like').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = parseInt(e.currentTarget.dataset.id);
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
                 if (!currentUser) { alert('로그인이 필요합니다.'); return; }
                 
                 const idx = profitPosts.findIndex(p => p.id === id);
                 if (idx !== -1) {
-                    if (profitPosts[idx].likes === undefined) {
-                        profitPosts[idx].likes = 0;
-                        profitPosts[idx].likedBy = [];
-                    }
+                    // 좋아요 로직은 현재 로컬에서만 유지 (실제 운영 시 likes_count 업데이트 필요)
                     if (profitPosts[idx].likedBy.includes(currentUser)) {
                         profitPosts[idx].likedBy = profitPosts[idx].likedBy.filter(u => u !== currentUser);
                         profitPosts[idx].likes--;
@@ -848,7 +845,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         profitPosts[idx].likedBy.push(currentUser);
                         profitPosts[idx].likes++;
                     }
-                    localStorage.setItem('gridCalcProfitPosts', JSON.stringify(profitPosts));
                     renderProfitFeed();
                     renderHotFeed();
                 }
@@ -857,7 +853,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('.btn-add-comment').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const id = parseInt(e.target.dataset.id);
+                const id = e.target.dataset.id;
                 const input = document.getElementById(`cmdInput-${id}`);
                 const cText = input.value.trim();
                 
@@ -866,7 +862,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const idx = profitPosts.findIndex(p => p.id === id);
                     if(idx !== -1) {
                         profitPosts[idx].comments.push({ user: currentUser, text: cText });
-                        localStorage.setItem('gridCalcProfitPosts', JSON.stringify(profitPosts));
                         renderProfitFeed();
                         checkNotifications();
                     }
@@ -1112,30 +1107,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.querySelectorAll('.btn-del-post').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = parseInt(e.currentTarget.dataset.id);
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
                 if(confirm('이 글을 삭제하시겠습니까?')) {
-                    profitPosts = profitPosts.filter(p => p.id !== id);
-                    localStorage.setItem('gridCalcProfitPosts', JSON.stringify(profitPosts));
-                    renderProfitFeed();
-                    renderHotFeed();
-                    renderMyPage();
+                    const { error } = await supabaseClient
+                        .from('posts')
+                        .delete()
+                        .match({ id: id, user_id: currentUserId });
+
+                    if (error) {
+                        alert('삭제 실패: ' + error.message);
+                    } else {
+                        profitPosts = profitPosts.filter(p => p.id !== id);
+                        renderProfitFeed();
+                        renderHotFeed();
+                        renderMyPage();
+                    }
                 }
             });
         });
 
         document.querySelectorAll('.btn-edit-post').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = parseInt(e.currentTarget.dataset.id);
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
                 const post = profitPosts.find(p => p.id === id);
                 if(!post) return;
                 const newText = prompt('새로운 내용을 입력하세요:', post.text);
                 if(newText !== null) {
-                    post.text = newText;
-                    localStorage.setItem('gridCalcProfitPosts', JSON.stringify(profitPosts));
-                    renderProfitFeed();
-                    renderHotFeed();
-                    renderMyPage();
+                    const { error } = await supabaseClient
+                        .from('posts')
+                        .update({ content: newText })
+                        .match({ id: id, user_id: currentUserId });
+
+                    if (error) {
+                        alert('수정 실패: ' + error.message);
+                    } else {
+                        post.text = newText;
+                        renderProfitFeed();
+                        renderHotFeed();
+                        renderMyPage();
+                    }
                 }
             });
         });
@@ -1232,6 +1243,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderBlogFeed() {
         const list = document.getElementById('blogList');
+        if (!list) return;
         list.innerHTML = '';
         if (blogPosts.length === 0) {
             list.innerHTML = '<div style="text-align:center; padding:2rem; color:var(--text-muted)">아직 등록된 정보 글이 없습니다.</div>';
@@ -1239,14 +1251,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         blogPosts.forEach(b => {
+            const isAdmin = currentUser && (currentUser === 'admin' || currentUser.startsWith('admin'));
+            const delBtn = isAdmin ? `<button class="btn-sm btn-del-blog" data-id="${b.id}" style="float:right; border:1px solid var(--loss); color:var(--loss); background:none; padding:2px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">삭제</button>` : '';
+
             const card = document.createElement('div');
             card.className = 'post-card blog-card';
             card.innerHTML = `
-                <div class="blog-title">${b.title}</div>
+                <div class="blog-title">${b.title} ${delBtn}</div>
                 <div class="post-date" style="margin-bottom:1rem;">관리자 | ${b.date}</div>
                 <div class="post-body" style="font-size:1rem; overflow-wrap:anywhere;">${b.content}</div>
             `;
             list.appendChild(card);
+        });
+
+        // 블로그 삭제 이벤트
+        document.querySelectorAll('.btn-del-blog').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.target.dataset.id;
+                if(confirm('이 블로그 글을 삭제하시겠습니까?')) {
+                    const { error } = await supabaseClient.from('blog_posts').delete().match({ id: id });
+                    if (error) {
+                        alert('블로그 삭제 실패: ' + error.message);
+                    } else {
+                        await fetchBlogPosts();
+                    }
+                }
+            });
         });
     }
 
