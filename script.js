@@ -2,8 +2,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Supabase Config ---
     const SUPABASE_URL = 'https://doqokgxyvmtwqdbypsls.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_cxc9U_-f6iaTvoW_OXx74w_q-TGhluz';
-    // CDN을 사용하면 전역 supabase 객체를 통해 createClient를 호출합니다.
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // 글로벌 supabase 객체를 사용하여 클라이언트 인스턴스 생성 (안전하게 감쌈)
+    let supabaseClient = null;
+    try {
+        if (typeof supabase !== 'undefined' && supabase.createClient) {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } else {
+            console.warn('Supabase 라이브러리가 로드되지 않았습니다.');
+        }
+    } catch (e) {
+        console.error('Supabase 초기화 오류:', e);
+    }
 
     // --- State ---
     let currentUser = null; 
@@ -65,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Supabase Sync & Init ---
     async function initApp() {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await supabaseClient.auth.getSession();
         if (session) {
             currentUser = session.user.email.split('@')[0]; // 임시 닉네임
             currentUserId = session.user.id;
@@ -84,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initApp();
 
     // Supabase Auth 상태 변경 리스너
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
         if (session) {
             currentUser = session.user.email.split('@')[0];
             currentUserId = session.user.id;
