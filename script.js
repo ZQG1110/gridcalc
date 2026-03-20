@@ -18,6 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     let currentUser = null; 
     let currentUserId = null; 
+
+    // 이름 표시 변환 헬퍼 (admin -> 관리자)
+    const formatDisplayName = (name) => {
+        if (!name) return '익명';
+        return (name === 'admin' || name.startsWith('admin')) ? '관리자' : name;
+    };
     
     // Simulator State
     let holdings = []; 
@@ -305,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnOpenSignup.classList.add('hidden');
             userInfo.classList.remove('hidden');
             navMyPage.classList.remove('hidden');
-            labelUsername.textContent = currentUser + (currentUser === 'admin' ? ' (관리자)' : '');
+            labelUsername.textContent = formatDisplayName(currentUser);
             
             if (currentUser === 'admin' || currentUser.startsWith('admin')) {
                 document.getElementById('blogAdminPanel').classList.remove('hidden');
@@ -879,9 +885,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const canDeleteComment = isAdmin || isOwnComment;
                 const delBtn = canDeleteComment ? `<button class="btn-del-comment" data-id="${c.id}" style="background:none; border:none; color:var(--loss); cursor:pointer; font-size:0.75rem; padding:0 4px;">&times;</button>` : '';
                 
+                const displayName = formatDisplayName(c.user);
                 commentsHtml += `<div class="comment-item" style="justify-content:space-between; display:flex; align-items:center;">
                     <div>
-                        <span class="comment-author">${c.user}</span>
+                        <span class="comment-author">${displayName}</span>
                         <span class="comment-text">${c.text}</span>
                     </div>
                     ${delBtn}
@@ -893,8 +900,8 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="post-header">
                     <div class="post-user">
-                        <div class="post-avatar">${post.user.charAt(0).toUpperCase()}</div>
-                        ${post.user}
+                        <div class="post-avatar">${formatDisplayName(post.user).charAt(0)}</div>
+                        ${formatDisplayName(post.user)}
                     </div>
                     <div class="post-date">${post.date} ${delBtnPost}</div>
                 </div>
@@ -1058,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="flex-align" style="margin-bottom:0.5rem;">
                     <span style="font-size:1.5rem; margin-right:0.5rem;">${index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
-                    <span style="font-weight:700; color:var(--text-main);">${post.user}님의 메세지</span>
+                    <span style="font-weight:700; color:var(--text-main);">${formatDisplayName(post.user)}님의 메세지</span>
                 </div>
                 <div class="post-body" style="font-size:0.9rem; margin-bottom:0.5rem; color:var(--text-main);">${post.text.replace(/\n/g, '<br>')}</div>
                 ${imgHtml}
@@ -1098,9 +1105,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const canDeleteComment = isAdmin || isOwnComment;
             const delBtn = canDeleteComment ? `<button class="btn-del-modal-comment" data-id="${c.id}" style="background:none; border:none; color:var(--loss); cursor:pointer; font-size:0.75rem; padding:0 4px;">&times;</button>` : '';
             
+            const displayName = formatDisplayName(c.user);
             commentsHtml += `<div class="comment-item" style="justify-content:space-between; display:flex; align-items:center; margin-bottom:4px;">
                 <div>
-                    <span class="comment-author">${c.user}</span>
+                    <span class="comment-author">${displayName}</span>
                     <span class="comment-text">${c.text}</span>
                 </div>
                 ${delBtn}
@@ -1112,8 +1120,8 @@ document.addEventListener('DOMContentLoaded', () => {
         postDetailContent.innerHTML = `
             <div class="post-header">
                 <div class="post-user">
-                    <div class="post-avatar">${post.user.charAt(0).toUpperCase()}</div>
-                    ${post.user}
+                    <div class="post-avatar">${formatDisplayName(post.user).charAt(0)}</div>
+                    ${formatDisplayName(post.user)}
                 </div>
                 <div class="post-date">${post.date} ${delBtnPost}</div>
             </div>
@@ -1496,7 +1504,7 @@ document.addEventListener('DOMContentLoaded', () => {
         latestCard.innerHTML = `
             <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:0.8rem;">📌 최신 소식</div>
             <div class="blog-title" style="font-size:1.8rem; margin-bottom:1rem; line-height:1.3;">${latest.title} ${delBtnLatest}</div>
-            <div class="post-date" style="margin-bottom:1.5rem; color:var(--mantine-gray-5);">관리자 | ${latest.date}</div>
+            <div class="post-date" style="margin-bottom:1.5rem; color:var(--mantine-gray-5);">${formatDisplayName('admin')} | ${latest.date}</div>
             <div class="post-body" style="font-size:1.1rem; line-height:1.8; color:var(--mantine-gray-8); margin-bottom:2rem; white-space: normal;">${latest.content}</div>
             
             <div class="post-actions" style="margin-top:0.5rem; margin-bottom:1rem;">
@@ -1580,7 +1588,7 @@ document.addEventListener('DOMContentLoaded', () => {
             featuredArea.innerHTML = `
                 <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:0.8rem;">📌 선택된 소식</div>
                 <div class="blog-title" style="font-size:1.8rem; margin-bottom:1rem; line-height:1.3;">${post.title} ${delBtn}</div>
-                <div class="post-date" style="margin-bottom:1.5rem; color:var(--mantine-gray-5);">관리자 | ${post.date}</div>
+                <div class="post-date" style="margin-bottom:1.5rem; color:var(--mantine-gray-5);">${formatDisplayName('admin')} | ${post.date}</div>
                 <div class="post-body" style="font-size:1.1rem; line-height:1.8; color:var(--mantine-gray-8); margin-bottom:2rem; white-space: normal;">${post.content}</div>
                 
                 <div class="post-actions" style="margin-top:0.5rem; margin-bottom:1rem;">
