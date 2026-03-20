@@ -861,6 +861,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const isAdmin = currentUser && (currentUser === 'admin' || currentUser.startsWith('admin'));
+
         profitPosts.forEach(post => {
             const card = document.createElement('div');
             card.className = 'post-card';
@@ -874,7 +876,8 @@ document.addEventListener('DOMContentLoaded', () => {
             let commentsHtml = ``;
             post.comments.forEach(c => {
                 const isOwnComment = currentUserId && c.user_id === currentUserId;
-                const delBtn = isOwnComment ? `<button class="btn-del-comment" data-id="${c.id}" style="background:none; border:none; color:var(--loss); cursor:pointer; font-size:0.75rem; padding:0 4px;">&times;</button>` : '';
+                const canDeleteComment = isAdmin || isOwnComment;
+                const delBtn = canDeleteComment ? `<button class="btn-del-comment" data-id="${c.id}" style="background:none; border:none; color:var(--loss); cursor:pointer; font-size:0.75rem; padding:0 4px;">&times;</button>` : '';
                 
                 commentsHtml += `<div class="comment-item" style="justify-content:space-between; display:flex; align-items:center;">
                     <div>
@@ -885,13 +888,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
             });
 
+            const delBtnPost = isAdmin ? `<button class="btn-del-profit-post" data-id="${post.id}" style="border:1px solid var(--loss); color:var(--loss); background:none; padding:2px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; margin-left:10px;">삭제</button>` : '';
+
             card.innerHTML = `
                 <div class="post-header">
                     <div class="post-user">
                         <div class="post-avatar">${post.user.charAt(0).toUpperCase()}</div>
                         ${post.user}
                     </div>
-                    <div class="post-date">${post.date}</div>
+                    <div class="post-date">${post.date} ${delBtnPost}</div>
                 </div>
                 <div class="post-body">${post.text.replace(/\n/g, '<br>')}</div>
                 ${imgHtml}
@@ -973,18 +978,36 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // 댓글 삭제 이벤트 리스너 추가
+        // 게시글 삭제 이벤트 (관리자)
+        document.querySelectorAll('.btn-del-profit-post').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = parseInt(e.currentTarget.dataset.id);
+                if (!confirm('이 게시글을 삭제하시겠습니까?')) return;
+                
+                try {
+                    const { error } = await supabaseClient.from('posts').delete().eq('id', id);
+                    if (error) throw error;
+                    await fetchPosts();
+                } catch(err) {
+                    alert('삭제 실패: ' + err.message);
+                }
+            });
+        });
+
+        // 댓글 삭제 이벤트 리스너
         document.querySelectorAll('.btn-del-comment').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const id = parseInt(e.currentTarget.dataset.id);
                 if (!confirm('댓글을 삭제하시겠습니까?')) return;
                 
                 try {
-                    const { error } = await supabaseClient
-                        .from('comments')
-                        .delete()
-                        .eq('id', id)
-                        .eq('user_id', currentUserId);
+                    // 관리자인 경우 user_id 체크 없이 삭제 시도 (DB Policy가 허용해야 함)
+                    let query = supabaseClient.from('comments').delete().eq('id', id);
+                    if (!isAdmin) {
+                        query = query.eq('user_id', currentUserId);
+                    }
+                    
+                    const { error } = await query;
                     if (error) throw error;
                     await fetchPosts();
                 } catch(err) {
@@ -1067,10 +1090,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let imgHtml = post.img ? `<img src="${post.img}" class="post-img" style="max-height: 400px; object-fit: contain;" alt="인증샷">` : '';
         
+        const isAdmin = currentUser && (currentUser === 'admin' || currentUser.startsWith('admin'));
+
         let commentsHtml = ``;
         post.comments.forEach(c => {
             const isOwnComment = currentUserId && c.user_id === currentUserId;
-            const delBtn = isOwnComment ? `<button class="btn-del-modal-comment" data-id="${c.id}" style="background:none; border:none; color:var(--loss); cursor:pointer; font-size:0.75rem; padding:0 4px;">&times;</button>` : '';
+            const canDeleteComment = isAdmin || isOwnComment;
+            const delBtn = canDeleteComment ? `<button class="btn-del-modal-comment" data-id="${c.id}" style="background:none; border:none; color:var(--loss); cursor:pointer; font-size:0.75rem; padding:0 4px;">&times;</button>` : '';
             
             commentsHtml += `<div class="comment-item" style="justify-content:space-between; display:flex; align-items:center; margin-bottom:4px;">
                 <div>
@@ -1081,13 +1107,15 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
         });
 
+        const delBtnPost = isAdmin ? `<button class="btn-del-modal-post" data-id="${post.id}" style="border:1px solid var(--loss); color:var(--loss); background:none; padding:2px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; margin-left:10px;">삭제</button>` : '';
+
         postDetailContent.innerHTML = `
             <div class="post-header">
                 <div class="post-user">
                     <div class="post-avatar">${post.user.charAt(0).toUpperCase()}</div>
                     ${post.user}
                 </div>
-                <div class="post-date">${post.date}</div>
+                <div class="post-date">${post.date} ${delBtnPost}</div>
             </div>
             <div class="post-body" style="font-size: 1.1rem; margin-bottom: 1rem;">${post.text.replace(/\n/g, '<br>')}</div>
             ${imgHtml}
@@ -1167,20 +1195,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!confirm('댓글을 삭제하시겠습니까?')) return;
                 
                 try {
-                    const { error } = await supabaseClient
-                        .from('comments')
-                        .delete()
-                        .eq('id', commentId)
-                        .eq('user_id', currentUserId);
+                    let query = supabaseClient.from('comments').delete().eq('id', commentId);
+                    if (!isAdmin) query = query.eq('user_id', currentUserId);
+                    
+                    const { error } = await query;
                     if (error) throw error;
                     await fetchPosts();
-                    openPostDetail(id); // 모달 다시 그리기
+                    openPostDetail(id);
                 } catch(err) {
                     alert('댓글 삭제 실패: ' + err.message);
                 }
             });
         });
-        
+
+        // 모달 내 게시글 삭제
+        const delPostBtn = postDetailContent.querySelector('.btn-del-modal-post');
+        if (delPostBtn) {
+            delPostBtn.addEventListener('click', async () => {
+                if (!confirm('정말 이 게시글을 삭제하시겠습니까?')) return;
+                try {
+                    const { error } = await supabaseClient.from('posts').delete().eq('id', id);
+                    if (error) throw error;
+                    postDetailModal.classList.remove('show');
+                    await fetchPosts();
+                } catch(err) {
+                    alert('게시글 삭제 실패: ' + err.message);
+                }
+            });
+        }
+
         postDetailModal.classList.add('show');
     }
 
