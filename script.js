@@ -91,14 +91,33 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAuthUI(); // 세션 확인 후 UI 다시 업데이트
         
         // 데이터 병렬 로드 (속도 최적화)
-        Promise.all([
+        await Promise.all([
             fetchPosts(),
             fetchBlogPosts(),
             currentUserId ? loadSimulatorState() : Promise.resolve()
-        ]).then(() => {
-            updateSimulatorUI();
-            checkNotifications();
-        });
+        ]);
+
+        updateSimulatorUI();
+        checkNotifications();
+        
+        // 새로고침 시 보던 탭 복구
+        const lastView = localStorage.getItem('gridCalcActiveView');
+        if (lastView) {
+            const targetBtn = document.querySelector(`.nav-btn[data-target="${lastView}"]`) || 
+                             (lastView === 'view-mypage' ? navMyPage : null);
+            if (targetBtn) {
+                // UI 전환 로직 직접 호출 (click() 호출 시 중복 fetch 방지)
+                navBtns.forEach(b => b.classList.remove('active'));
+                navMyPage.classList.remove('active');
+                targetBtn.classList.add('active');
+                viewSections.forEach(v => {
+                    v.classList.remove('active');
+                    v.classList.add('hidden');
+                });
+                document.getElementById(lastView).classList.remove('hidden');
+                document.getElementById(lastView).classList.add('active');
+            }
+        }
     }
 
     initApp();
@@ -144,12 +163,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     navBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            navBtns.forEach(b => b.classList.remove('active'));
-            e.currentTarget.classList.add('active');
-            
+        btn.addEventListener('click', async (e) => {
             const targetId = e.currentTarget.dataset.target;
             if (!targetId) return;
+
+            // 1. 현재 탭 저장 (새로고침 시 유지용)
+            localStorage.setItem('gridCalcActiveView', targetId);
+
+            // 2. 메뉴 클릭 시 데이터 새로고침 (사이트 최신화)
+            if (targetId === 'view-profit') await fetchPosts();
+            if (targetId === 'view-blog') await fetchBlogPosts();
+            if (targetId === 'view-simulator' && currentUserId) await loadSimulatorState();
+
+            navBtns.forEach(b => b.classList.remove('active'));
+            navMyPage.classList.remove('active');
+            e.currentTarget.classList.add('active');
+            
             viewSections.forEach(v => {
                 v.classList.remove('active');
                 v.classList.add('hidden');
@@ -160,7 +189,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     navMyPage.addEventListener('click', () => {
+        // 현재 탭 저장 (마이페이지)
+        localStorage.setItem('gridCalcActiveView', 'view-mypage');
+        
         navBtns.forEach(b => b.classList.remove('active'));
+        navMyPage.classList.add('active');
         
         // Re-render my page first so it can render the "New" badges based on current lastSeenComments
         renderMyPage();
@@ -780,14 +813,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 img: p.image_url,
                 date: new Date(p.created_at).toLocaleString(),
                 likes: p.likes_count || 0,
-                likedBy: p.liked_by || [], // DB에서 가져온 좋아요 리스트
+                likedBy: p.liked_by || [], 
                 comments: (p.comments || []).sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(c => ({
+                    id: c.id,
                     user: c.username,
+                    user_id: c.user_id,
                     text: c.text
                 }))
             }));
             renderProfitFeed();
             renderHotFeed();
+            if (document.getElementById('view-mypage').classList.contains('active')) renderMyPage();
         }
     }
 
@@ -830,9 +866,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let commentsHtml = ``;
             post.comments.forEach(c => {
-                commentsHtml += `<div class="comment-item">
-                    <span class="comment-author">${c.user}</span>
-                    <span class="comment-text">${c.text}</span>
+                const isOwnComment = currentUserId && c.user_id === currentUserId;
+                const delBtn = isOwnComment ? `<button class="btn-del-comment" data-id="${c.id}" style="background:none; border:none; color:var(--loss); cursor:pointer; font-size:0.75rem; padding:0 4px;">&times;</button>` : '';
+                
+                commentsHtml += `<div class="comment-item" style="justify-content:space-between; display:flex; align-items:center;">
+                    <div>
+                        <span class="comment-author">${c.user}</span>
+                        <span class="comment-text">${c.text}</span>
+                    </div>
+                    ${delBtn}
                 </div>`;
             });
 
@@ -923,6 +965,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+
+        // 댓글 삭제 이벤트 리스너 추가
+        document.querySelectorAll('.btn-del-comment').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = parseInt(e.currentTarget.dataset.id);
+                if (!confirm('댓글을 삭제하시겠습니까?')) return;
+                
+                try {
+                    const { error } = await supabaseClient
+                        .from('comments')
+                        .delete()
+                        .eq('id', id)
+                        .eq('user_id', currentUserId);
+                    if (error) throw error;
+                    await fetchPosts();
+                } catch(err) {
+                    alert('댓글 삭제 실패: ' + err.message);
+                }
+            });
+        });
     }
 
     function renderHotFeed() {
@@ -1000,9 +1062,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let commentsHtml = ``;
         post.comments.forEach(c => {
-            commentsHtml += `<div class="comment-item">
-                <span class="comment-author">${c.user}</span>
-                <span class="comment-text">${c.text}</span>
+            const isOwnComment = currentUserId && c.user_id === currentUserId;
+            const delBtn = isOwnComment ? `<button class="btn-del-modal-comment" data-id="${c.id}" style="background:none; border:none; color:var(--loss); cursor:pointer; font-size:0.75rem; padding:0 4px;">&times;</button>` : '';
+            
+            commentsHtml += `<div class="comment-item" style="justify-content:space-between; display:flex; align-items:center; margin-bottom:4px;">
+                <div>
+                    <span class="comment-author">${c.user}</span>
+                    <span class="comment-text">${c.text}</span>
+                </div>
+                ${delBtn}
             </div>`;
         });
 
@@ -1083,6 +1151,27 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(err) {
                 alert('댓글 저장 실패: ' + err.message);
             }
+        });
+
+        // 모달 내 댓글 삭제
+        postDetailContent.querySelectorAll('.btn-del-modal-comment').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const commentId = parseInt(e.currentTarget.dataset.id);
+                if (!confirm('댓글을 삭제하시겠습니까?')) return;
+                
+                try {
+                    const { error } = await supabaseClient
+                        .from('comments')
+                        .delete()
+                        .eq('id', commentId)
+                        .eq('user_id', currentUserId);
+                    if (error) throw error;
+                    await fetchPosts();
+                    openPostDetail(id); // 모달 다시 그리기
+                } catch(err) {
+                    alert('댓글 삭제 실패: ' + err.message);
+                }
+            });
         });
         
         postDetailModal.classList.add('show');
