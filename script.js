@@ -898,7 +898,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="post-date">${post.date} ${delBtnPost}</div>
                 </div>
-                <div class="post-body">${post.text.replace(/\n/g, '<br>')}</div>
+                <div class="post-body" style="white-space: normal;">${post.text.replace(/\n/g, '<br>')}</div>
                 ${imgHtml}
                 <div class="post-actions" style="margin-top:0.5rem; margin-bottom:1rem;">
                     <button class="btn-text btn-like ${hasLiked ? 'liked' : ''}" data-id="${post.id}" style="font-size:1.1rem; border:1px solid ${hasLiked ? 'var(--loss)' : 'var(--glass-border)'}; padding:0.2rem 0.6rem; border-radius:4px; background:${hasLiked ? 'rgba(239,68,68,0.1)' : 'transparent'}; color:${hasLiked ? 'var(--loss)' : 'var(--text-muted)'}; font-weight:bold;">
@@ -1117,7 +1117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="post-date">${post.date} ${delBtnPost}</div>
             </div>
-            <div class="post-body" style="font-size: 1.1rem; margin-bottom: 1rem;">${post.text.replace(/\n/g, '<br>')}</div>
+            <div class="post-body" style="font-size: 1.1rem; margin-bottom: 1rem; white-space: normal;">${post.text.replace(/\n/g, '<br>')}</div>
             ${imgHtml}
             <div class="post-actions" style="margin-top:0.5rem; margin-bottom:1rem;">
                 <button class="btn-text btn-modal-like" data-id="${post.id}" style="font-size:1.1rem; border:1px solid var(--loss); padding:0.2rem 0.6rem; border-radius:4px; background:rgba(239,68,68,0.05); color:var(--loss); font-weight:bold;">
@@ -1497,9 +1497,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:0.8rem;">📌 최신 소식</div>
             <div class="blog-title" style="font-size:1.8rem; margin-bottom:1rem; line-height:1.3;">${latest.title} ${delBtnLatest}</div>
             <div class="post-date" style="margin-bottom:1.5rem; color:var(--mantine-gray-5);">관리자 | ${latest.date}</div>
-            <div class="post-body" style="font-size:1.1rem; line-height:1.8; color:var(--mantine-gray-8); margin-bottom:2rem;">
-                ${latest.content}
-            </div>
+            <div class="post-body" style="font-size:1.1rem; line-height:1.8; color:var(--mantine-gray-8); margin-bottom:2rem; white-space: normal;">${latest.content}</div>
             
             <div class="post-actions" style="margin-top:0.5rem; margin-bottom:1rem;">
                 <button class="btn-text btn-like ${isLikedLatest ? 'liked' : ''}" data-id="${latest.id}" data-type="blog" style="font-size:1.1rem; border:1px solid ${isLikedLatest ? 'var(--loss)' : 'var(--glass-border)'}; padding:0.2rem 0.6rem; border-radius:4px; background:${isLikedLatest ? 'rgba(239,68,68,0.1)' : 'transparent'}; color:${isLikedLatest ? 'var(--loss)' : 'var(--text-muted)'}; font-weight:bold;">
@@ -1583,9 +1581,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:0.8rem;">📌 선택된 소식</div>
                 <div class="blog-title" style="font-size:1.8rem; margin-bottom:1rem; line-height:1.3;">${post.title} ${delBtn}</div>
                 <div class="post-date" style="margin-bottom:1.5rem; color:var(--mantine-gray-5);">관리자 | ${post.date}</div>
-                <div class="post-body" style="font-size:1.1rem; line-height:1.8; color:var(--mantine-gray-8); margin-bottom:2rem;">
-                    ${post.content}
-                </div>
+                <div class="post-body" style="font-size:1.1rem; line-height:1.8; color:var(--mantine-gray-8); margin-bottom:2rem; white-space: normal;">${post.content}</div>
                 
                 <div class="post-actions" style="margin-top:0.5rem; margin-bottom:1rem;">
                     <button class="btn-text btn-like ${isLiked ? 'liked' : ''}" data-id="${post.id}" data-type="blog" style="font-size:1.1rem; border:1px solid ${isLiked ? 'var(--loss)' : 'var(--glass-border)'}; padding:0.2rem 0.6rem; border-radius:4px; background:${isLiked ? 'rgba(239,68,68,0.1)' : 'transparent'}; color:${isLiked ? 'var(--loss)' : 'var(--text-muted)'}; font-weight:bold;">
