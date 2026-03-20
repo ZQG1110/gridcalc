@@ -141,9 +141,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // 모든 메뉴 버튼 활성 상태 초기화
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         
-        // 타겟 버튼 활성화
-        const targetBtn = document.querySelector(`.nav-btn[data-target="${targetId}"]`) || 
-                         (targetId === 'view-mypage' ? navMyPage : null);
+        // 타겟 버튼 활성화 (상세보기일 경우 블로그 메뉴 활성화)
+        let activeTarget = targetId;
+        if (targetId === 'view-blog-article') activeTarget = 'view-blog';
+        
+        const targetBtn = document.querySelector(`.nav-btn[data-target="${activeTarget}"]`) || 
+                         (activeTarget === 'view-mypage' ? navMyPage : null);
         if (targetBtn) targetBtn.classList.add('active');
 
         // 섹션 전환
@@ -799,11 +802,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    document.getElementById('btnBackToBlog').addEventListener('click', () => switchView('view-blog'));
+
     async function fetchBlogPosts() {
-        // blog_posts 테이블이 있다고 가정 (SQL 계획서 포함)
         const { data, error } = await supabaseClient
             .from('blog_posts')
-            .select('*')
+            .select('*, blog_comments(*)')
             .order('created_at', { ascending: false });
 
         if (data) {
@@ -811,10 +815,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 id: b.id,
                 title: b.title,
                 content: b.content,
-                img: b.image_url,
-                date: new Date(b.created_at).toLocaleDateString()
+                date: new Date(b.created_at).toLocaleString(),
+                likes: b.likes_count || 0,
+                likedBy: b.liked_by || [],
+                comments: (b.blog_comments || []).sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(c => ({
+                    id: c.id,
+                    user: c.username,
+                    user_id: c.user_id,
+                    text: c.text
+                }))
             }));
             renderBlogFeed();
+            
+            // 상세 페이지 유지
+            const activeView = localStorage.getItem('gridCalcActiveView');
+            const activeBlogId = localStorage.getItem('gridCalcActiveBlogId');
+            if (activeView === 'view-blog-article' && activeBlogId) {
+                const updatedBlog = blogPosts.find(bp => bp.id == activeBlogId);
+                if (updatedBlog) renderBlogArticle(updatedBlog);
+            }
         }
     }
 
@@ -1391,53 +1410,147 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const isAdmin = currentUser && (currentUser === 'admin' || currentUser.startsWith('admin'));
 
-        // 1. 최신 글 (Full Display)
+        // 1. 최신 글 (Featured)
         const latest = blogPosts[0];
+        const isLikedLatest = latest.likedBy.includes(currentUserId);
         const delBtnLatest = isAdmin ? `<button class="btn-sm btn-del-blog" data-id="${latest.id}" style="float:right; border:1px solid var(--loss); color:var(--loss); background:none; padding:2px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">삭제</button>` : '';
         
         const latestCard = document.createElement('div');
         latestCard.className = 'post-card blog-card';
-        latestCard.style.borderLeft = '4px solid var(--primary)';
+        latestCard.style.cssText = 'border-left:5px solid var(--primary); cursor:pointer;';
         latestCard.innerHTML = `
-            <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:0.5rem;">📌 최신 소식</div>
-            <div class="blog-title" style="font-size:1.4rem;">${latest.title} ${delBtnLatest}</div>
-            <div class="post-date" style="margin-bottom:1rem;">관리자 | ${latest.date}</div>
-            <div class="post-body" style="font-size:1.05rem; overflow-wrap:anywhere;">${latest.content}</div>
+            <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:0.8rem;">📌 최신 소식</div>
+            <div class="blog-title" style="font-size:1.6rem; margin-bottom:1rem;">${latest.title} ${delBtnLatest}</div>
+            <div class="post-date" style="margin-bottom:1.5rem;">관리자 | ${latest.date}</div>
+            <div class="post-body" style="font-size:1.1rem; line-height:1.7; max-height:200px; overflow:hidden; position:relative; margin-bottom:1.5rem;">
+                ${latest.content}
+                <div style="position:absolute; bottom:0; left:0; right:0; height:80px; background:linear-gradient(transparent, #fff);"></div>
+            </div>
+            
+            <div class="post-footer" style="padding-top:1rem; border-top:1px solid var(--mantine-gray-1); display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; gap:1rem;">
+                    <span class="btn-like ${isLikedLatest ? 'liked' : ''}" style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;" data-id="${latest.id}" data-type="blog">
+                        ${isLikedLatest ? '❤️' : '🤍'} <b>${latest.likes}</b>
+                    </span>
+                    <span style="display:flex; align-items:center; gap:0.4rem; color:var(--mantine-gray-6);">
+                        💬 <b>${latest.comments.length}</b>
+                    </span>
+                </div>
+                <button class="btn btn-outline mini-btn" style="width:auto; padding:0 1rem; border-color:var(--primary); color:var(--primary);">더 보기 & 댓글</button>
+            </div>
         `;
+        latestCard.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-del-blog') || e.target.closest('.btn-like')) return;
+            openBlogArticle(latest);
+        });
         list.appendChild(latestCard);
 
-        // 2. 이전 글 목록 (최대 5개)
+        // 2. 이전 글 목록
         const others = blogPosts.slice(1, 6);
         if (others.length > 0) {
             const othersContainer = document.createElement('div');
-            othersContainer.style.marginTop = '2.5rem';
-            othersContainer.innerHTML = `<h3 style="font-size:1.1rem; margin-bottom:1rem; color:var(--mantine-gray-7); border-bottom:2px solid var(--mantine-gray-1); padding-bottom:0.8rem; display:flex; align-items:center;">📜 이전 소식 목록</h3>`;
+            othersContainer.style.marginTop = '3rem';
+            othersContainer.innerHTML = `<h3 style="font-size:1.2rem; margin-bottom:1.2rem; color:var(--mantine-gray-8); border-bottom:2px solid var(--mantine-gray-1); padding-bottom:0.8rem;">📜 이전 소식 목록</h3>`;
             
             others.forEach(b => {
-                const delBtnOther = isAdmin ? `<button class="btn-del-blog" data-id="${b.id}" style="border:none; color:var(--loss); background:none; cursor:pointer; font-size:1.2rem; padding: 0 10px; line-height:1;">&times;</button>` : '';
+                const delBtnOther = isAdmin ? `<button class="btn-del-blog" data-id="${b.id}" style="border:none; color:var(--loss); background:none; cursor:pointer; font-size:1.4rem; padding: 0 10px;">&times;</button>` : '';
                 const item = document.createElement('div');
                 item.className = 'blog-list-item';
-                item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:1.2rem 1rem; background:#fff; border-bottom:1px solid var(--mantine-gray-1); transition:background 0.15s; cursor:pointer;';
+                item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:1.2rem 1rem; background:#fff; border-bottom:1px solid var(--mantine-gray-1); transition:background 0.2s; cursor:pointer;';
                 item.innerHTML = `
                     <div style="flex:1;">
-                        <span style="font-weight:600; font-size:1rem; color:var(--mantine-gray-8);">${b.title}</span>
-                        <span style="font-size:0.8rem; color:var(--mantine-gray-5); margin-left:12px;">${b.date.split(',')[0]}</span>
+                        <span style="font-weight:600; font-size:1.05rem; color:var(--mantine-gray-8);">${b.title}</span>
+                        <span style="font-size:0.85rem; color:var(--mantine-gray-5); margin-left:15px;">${b.date.split(',')[0]}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.8rem; margin-right:1rem;">
+                        <span style="font-size:0.85rem; color:var(--mantine-gray-6);">❤️ ${b.likes}</span>
+                        <span style="font-size:0.85rem; color:var(--mantine-gray-6);">💬 ${b.comments.length}</span>
                     </div>
                     ${delBtnOther}
                 `;
-                
-                // 리스트 아이템 클릭 시 상세보기 모달 오픈
                 item.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('btn-del-blog')) return; // 삭제 버튼 클릭 시 무시
-                    openBlogDetail(b);
+                    if (e.target.closest('.btn-del-blog')) return;
+                    openBlogArticle(b);
                 });
-
                 othersContainer.appendChild(item);
             });
             list.appendChild(othersContainer);
         }
+        
+        bindBlogListEvents();
+    }
 
-        // 블로그 삭제 이벤트 다시 바인딩 (두 타입 모두 처리)
+    function openBlogArticle(post) {
+        localStorage.setItem('gridCalcActiveBlogId', post.id);
+        switchView('view-blog-article');
+        renderBlogArticle(post);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderBlogArticle(post) {
+        const container = document.getElementById('blogArticleContent');
+        if (!container) return;
+
+        const isLiked = currentUserId && post.likedBy.includes(currentUserId);
+        
+        let commentsHtml = '';
+        post.comments.forEach(c => {
+            const isOwnComment = currentUserId && c.user_id === currentUserId;
+            const delBtn = isOwnComment ? `<button class="btn-del-blog-comment btn-text" data-id="${c.id}" style="color:var(--loss); font-size:0.8rem; cursor:pointer;">&times; 삭제</button>` : '';
+            commentsHtml += `
+                <div class="comment-item" style="padding:1rem; border-bottom:1px solid var(--mantine-gray-1); display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div style="flex:1;">
+                        <span class="comment-author" style="font-weight:700; color:var(--primary); margin-right:0.5rem;">${c.user}</span>
+                        <div class="comment-text" style="margin-top:0.3rem; color:var(--mantine-gray-8); line-height:1.6; font-size:0.95rem;">${c.text}</div>
+                    </div>
+                    ${delBtn}
+                </div>
+            `;
+        });
+
+        container.innerHTML = `
+            <div class="blog-info-meta">
+                <h1 style="font-size:2.2rem; font-weight:800; line-height:1.3; margin-bottom:1.5rem; color:var(--mantine-gray-9); letter-spacing:-0.03em;">${post.title}</h1>
+                <div style="display:flex; align-items:center; gap:1.2rem; color:var(--mantine-gray-5); font-size:0.95rem;">
+                    <div class="flex-align" style="gap:0.5rem;">
+                        <div class="post-avatar" style="width:24px; height:24px; font-size:0.7rem;">A</div>
+                        <span style="font-weight:600; color:var(--mantine-gray-7);">관리자</span>
+                    </div>
+                    <span>${post.date}</span>
+                </div>
+            </div>
+
+            <div class="blog-article-body" style="font-size:1.15rem; line-height:1.85; color:var(--mantine-gray-8); margin-top:2.5rem;">
+                ${post.content}
+            </div>
+
+            <div class="blog-interaction-bar" style="margin-top:4rem; border-top:1px solid var(--mantine-gray-2); padding:1.5rem 0; display:flex; gap:1.2rem; align-items:center;">
+                <button class="btn-like ${isLiked ? 'liked' : ''}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 1.4rem; border-radius:100px; border:1px solid var(--mantine-gray-3); background:#fff; cursor:pointer; font-weight:700; transition:all 0.2s;" data-id="${post.id}">
+                    <span style="font-size:1.1rem;">${isLiked ? '❤️' : '🤍'}</span> <span>좋아요 ${post.likes}</span>
+                </button>
+                <div style="color:var(--mantine-gray-6); font-weight:500;">💬 댓글 ${post.comments.length}개</div>
+            </div>
+
+            <div class="blog-comment-section" style="margin-top:2rem;">
+                <h3 style="font-size:1.25rem; font-weight:700; margin-bottom:1.5rem; color:var(--mantine-gray-9);">댓글 이야기</h3>
+                
+                <div class="blog-comment-input-area" style="margin-bottom:2.5rem; background:var(--mantine-gray-0); padding:1.2rem; border-radius:12px; border:1px solid var(--mantine-gray-2);">
+                    <textarea id="blogCommentInput" rows="3" placeholder="${currentUserId ? '따뜻한 댓글을 남겨주세요' : '로그인이 필요한 기능입니다'}" class="post-textarea" style="border:1px solid var(--mantine-gray-3); margin-bottom:0.8rem; background:#fff;"></textarea>
+                    <div style="display:flex; justify-content:flex-end;">
+                        <button id="btnSubmitBlogComment" class="btn buy-btn mini-btn" style="width:auto; padding:0 2rem; height:40px;">등록하기</button>
+                    </div>
+                </div>
+
+                <div class="blog-comments-list" style="background:#fff; border-radius:12px; overflow:hidden;">
+                    ${commentsHtml || '<div style="text-align:center; padding:4rem; color:var(--mantine-gray-5); background:var(--mantine-gray-0); border-radius:12px;">아직 작성된 댓글이 없습니다. 첫 의견을 남겨보세요!</div>'}
+                </div>
+            </div>
+        `;
+
+        bindBlogArticleEvents(post);
+    }
+
+    function bindBlogListEvents() {
         document.querySelectorAll('.btn-del-blog').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -1452,26 +1565,91 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+
+        document.querySelectorAll('.btn-like[data-type="blog"]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const id = e.currentTarget.dataset.id;
+                await handleBlogLike(id);
+            });
+        });
     }
 
-    function openBlogDetail(post) {
-        const modal = document.getElementById('postDetailModal');
-        const content = document.getElementById('postDetailContent');
-        if (!modal || !content) return;
+    function bindBlogArticleEvents(post) {
+        const container = document.getElementById('blogArticleContent');
+        
+        // 좋아요 버튼
+        const likeBtn = container.querySelector('.btn-like');
+        if (likeBtn) {
+            likeBtn.addEventListener('click', async () => {
+                await handleBlogLike(post.id);
+            });
+        }
 
-        content.innerHTML = `
-            <div style="padding:1.5rem; text-align:left;">
-                <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:0.5rem;">📜 이전 게시물 상세보기</div>
-                <h2 style="font-size:1.6rem; margin-bottom:0.8rem; color:var(--mantine-gray-9); line-height:1.3;">${post.title}</h2>
-                <div style="font-size:0.85rem; color:var(--mantine-gray-5); margin-bottom:1.5rem; border-bottom:1px solid var(--mantine-gray-2); padding-bottom:1rem;">
-                    관리자 | ${post.date}
-                </div>
-                <div class="blog-detail-body" style="font-size:1.05rem; line-height:1.8; color:var(--mantine-gray-8); overflow-wrap:anywhere;">
-                    ${post.content}
-                </div>
-            </div>
-        `;
-        modal.classList.add('show');
+        // 댓글 등록
+        const submitBtn = container.querySelector('#btnSubmitBlogComment');
+        const input = container.querySelector('#blogCommentInput');
+        if (submitBtn && input) {
+            submitBtn.addEventListener('click', async () => {
+                const text = input.value.trim();
+                if (!text) return;
+                await handleBlogComment(post.id, text);
+            });
+        }
+
+        // 댓글 삭제
+        container.querySelectorAll('.btn-del-blog-comment').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                if (confirm('댓글을 삭제하시겠습니까?')) {
+                    const { error } = await supabaseClient.from('blog_comments').delete().match({ id: id });
+                    if (error) alert('삭제 실패: ' + error.message);
+                    else await fetchBlogPosts();
+                }
+            });
+        });
+    }
+
+    async function handleBlogLike(id) {
+        if (!currentUserId) { alert('좋아요를 누르려면 로그인이 필요합니다.'); return; }
+        
+        const post = blogPosts.find(p => p.id == id);
+        if (!post) return;
+
+        let newLikedBy = [...post.likedBy];
+        let newLikesCount = post.likes;
+
+        if (newLikedBy.includes(currentUserId)) {
+            newLikedBy = newLikedBy.filter(uid => uid !== currentUserId);
+            newLikesCount = Math.max(0, newLikesCount - 1);
+        } else {
+            newLikedBy.push(currentUserId);
+            newLikesCount += 1;
+        }
+
+        const { error } = await supabaseClient
+            .from('blog_posts')
+            .update({ likes_count: newLikesCount, liked_by: newLikedBy })
+            .match({ id: id });
+
+        if (error) alert('실패: ' + error.message);
+        else await fetchBlogPosts();
+    }
+
+    async function handleBlogComment(blogPostId, text) {
+        if (!currentUserId) { alert('댓글을 쓰려면 로그인이 필요합니다.'); return; }
+
+        const { error } = await supabaseClient
+            .from('blog_comments')
+            .insert([{
+                blog_post_id: blogPostId,
+                user_id: currentUserId,
+                username: currentUser,
+                text: text
+            }]);
+
+        if (error) alert('저장 실패: ' + error.message);
+        else await fetchBlogPosts();
     }
 
     // --- Drag and Drop Logic ---
