@@ -765,21 +765,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchPosts() {
+        // 글과 댓글을 한 번에 가져오기 (관계형 쿼리)
         const { data, error } = await supabaseClient
             .from('posts')
-            .select('*')
+            .select('*, comments(*)')
             .order('created_at', { ascending: false });
 
         if (data) {
             profitPosts = data.map(p => ({
                 id: p.id,
+                user_id: p.user_id,
                 user: p.username,
                 text: p.content,
                 img: p.image_url,
                 date: new Date(p.created_at).toLocaleString(),
                 likes: p.likes_count || 0,
-                likedBy: [], // 좋아요 상세 로직은 추가 테이블 필요
-                comments: []
+                likedBy: p.liked_by || [], // DB에서 가져온 좋아요 리스트
+                comments: (p.comments || []).sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(c => ({
+                    user: c.username,
+                    text: c.text
+                }))
             }));
             renderProfitFeed();
             renderHotFeed();
@@ -818,10 +823,6 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'post-card';
             card.id = `profitFeed-post-${post.id}`;
 
-            // Fix older posts missing likes properties
-            if (post.likes === undefined) post.likes = 0;
-            if (post.likedBy === undefined) post.likedBy = [];
-
             let imgHtml = post.img ? `<img src="${post.img}" class="post-img" alt="인증샷">` : '';
             
             let hasLiked = currentUser && post.likedBy.includes(currentUser);
@@ -846,13 +847,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="post-body">${post.text.replace(/\n/g, '<br>')}</div>
                 ${imgHtml}
                 <div class="post-actions" style="margin-top:0.5rem; margin-bottom:1rem;">
-                    <button class="btn-text btn-like" data-id="${post.id}" style="font-size:1.1rem; border:1px solid var(--loss); padding:0.2rem 0.6rem; border-radius:4px; background:rgba(239,68,68,0.05); color:var(--loss); font-weight:bold;">
+                    <button class="btn-text btn-like ${hasLiked ? 'liked' : ''}" data-id="${post.id}" style="font-size:1.1rem; border:1px solid ${hasLiked ? 'var(--loss)' : 'var(--glass-border)'}; padding:0.2rem 0.6rem; border-radius:4px; background:${hasLiked ? 'rgba(239,68,68,0.1)' : 'transparent'}; color:${hasLiked ? 'var(--loss)' : 'var(--text-muted)'}; font-weight:bold;">
                         ${likeIcon} <span style="font-size:0.95rem;">${post.likes}</span>
                     </button>
                 </div>
                 <div class="post-footer">
                     <div class="comments-list" id="comments-${post.id}">
-                        ${commentsHtml}
+                        ${commentsHtml ? commentsHtml : '<div style="color:var(--text-muted); font-size:0.85rem; padding:0.5rem 0;">첫 댓글을 남겨보세요!</div>'}
                     </div>
                     <div class="comment-input-area">
                         <input type="text" class="comment-input" placeholder="댓글 달기..." id="cmdInput-${post.id}">
@@ -865,39 +866,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('.btn-like').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                const id = e.currentTarget.dataset.id;
+                const id = parseInt(e.currentTarget.dataset.id);
                 if (!currentUser) { alert('로그인이 필요합니다.'); return; }
                 
-                const idx = profitPosts.findIndex(p => p.id === id);
-                if (idx !== -1) {
-                    // 좋아요 로직은 현재 로컬에서만 유지 (실제 운영 시 likes_count 업데이트 필요)
-                    if (profitPosts[idx].likedBy.includes(currentUser)) {
-                        profitPosts[idx].likedBy = profitPosts[idx].likedBy.filter(u => u !== currentUser);
-                        profitPosts[idx].likes--;
-                    } else {
-                        profitPosts[idx].likedBy.push(currentUser);
-                        profitPosts[idx].likes++;
-                    }
-                    renderProfitFeed();
-                    renderHotFeed();
+                const post = profitPosts.find(p => p.id === id);
+                if (!post) return;
+
+                let newLikedBy = [...post.likedBy];
+                let newLikesCount = post.likes;
+
+                if (newLikedBy.includes(currentUser)) {
+                    newLikedBy = newLikedBy.filter(u => u !== currentUser);
+                    newLikesCount = Math.max(0, newLikesCount - 1);
+                } else {
+                    newLikedBy.push(currentUser);
+                    newLikesCount++;
+                }
+
+                try {
+                    const { error } = await supabaseClient
+                        .from('posts')
+                        .update({ likes_count: newLikesCount, liked_by: newLikedBy })
+                        .eq('id', id);
+                    if (error) throw error;
+                    await fetchPosts();
+                } catch(err) {
+                    alert('좋아요 처리 실패: ' + err.message);
                 }
             });
         });
 
         document.querySelectorAll('.btn-add-comment').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = e.target.dataset.id;
+            btn.addEventListener('click', async (e) => {
+                const id = parseInt(e.target.dataset.id);
                 const input = document.getElementById(`cmdInput-${id}`);
                 const cText = input.value.trim();
                 
                 if(!currentUser) { alert('로그인이 필요합니다.'); return; }
-                if(cText) {
-                    const idx = profitPosts.findIndex(p => p.id === id);
-                    if(idx !== -1) {
-                        profitPosts[idx].comments.push({ user: currentUser, text: cText });
-                        renderProfitFeed();
-                        checkNotifications();
-                    }
+                if(!cText) return;
+
+                try {
+                    const { error } = await supabaseClient
+                        .from('comments')
+                        .insert([{
+                            post_id: id,
+                            user_id: currentUserId,
+                            username: currentUser,
+                            text: cText
+                        }]);
+                    if (error) throw error;
+                    input.value = '';
+                    await fetchPosts();
+                    checkNotifications();
+                } catch(err) {
+                    alert('댓글 저장 실패: ' + err.message);
                 }
             });
         });
@@ -1011,33 +1033,55 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
-        postDetailContent.querySelector('.btn-modal-like').addEventListener('click', () => {
+        postDetailContent.querySelector('.btn-modal-like').addEventListener('click', async () => {
             if (!currentUser) { alert('로그인이 필요합니다.'); return; }
-            if (post.likes === undefined) { post.likes = 0; post.likedBy = []; }
-            if (post.likedBy.includes(currentUser)) {
-                post.likedBy = post.likedBy.filter(u => u !== currentUser);
-                post.likes--;
+            
+            let newLikedBy = [...post.likedBy];
+            let newLikesCount = post.likes;
+
+            if (newLikedBy.includes(currentUser)) {
+                newLikedBy = newLikedBy.filter(u => u !== currentUser);
+                newLikesCount = Math.max(0, newLikesCount - 1);
             } else {
-                post.likedBy.push(currentUser);
-                post.likes++;
+                newLikedBy.push(currentUser);
+                newLikesCount++;
             }
-            localStorage.setItem('gridCalcProfitPosts', JSON.stringify(profitPosts));
-            renderProfitFeed();
-            renderHotFeed();
-            openPostDetail(id); // re-render modal
+
+            try {
+                const { error } = await supabaseClient
+                    .from('posts')
+                    .update({ likes_count: newLikesCount, liked_by: newLikedBy })
+                    .eq('id', id);
+                if (error) throw error;
+                await fetchPosts();
+                openPostDetail(id); // Re-open with new data
+            } catch(err) {
+                alert('좋아요 처리 실패: ' + err.message);
+            }
         });
         
-        postDetailContent.querySelector('.btn-modal-comment').addEventListener('click', () => {
+        postDetailContent.querySelector('.btn-modal-comment').addEventListener('click', async () => {
             const input = document.getElementById(`modalCmdInput-${id}`);
             const cText = input.value.trim();
             if(!currentUser) { alert('로그인이 필요합니다.'); return; }
-            if(cText) {
-                post.comments.push({ user: currentUser, text: cText });
-                localStorage.setItem('gridCalcProfitPosts', JSON.stringify(profitPosts));
-                renderProfitFeed();
-                renderHotFeed();
+            if(!cText) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('comments')
+                    .insert([{
+                        post_id: id,
+                        user_id: currentUserId,
+                        username: currentUser,
+                        text: cText
+                    }]);
+                if (error) throw error;
+                input.value = '';
+                await fetchPosts();
                 checkNotifications();
-                openPostDetail(id); // re-render modal
+                openPostDetail(id);
+            } catch(err) {
+                alert('댓글 저장 실패: ' + err.message);
             }
         });
         

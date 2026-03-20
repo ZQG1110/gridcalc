@@ -473,6 +473,41 @@ tr.first-batch:hover { background: rgba(34, 139, 230, 0.08); }
 }
 
 /* ========== RESPONSIVE ========== */
+/* ========== EDITOR TOOLBAR & LIKE BUTTON ========== */
+.tool-btn {
+    background: #fff;
+    border: 1px solid var(--mantine-gray-3);
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    color: var(--mantine-gray-7);
+}
+.tool-btn:hover { background: var(--mantine-gray-0); border-color: var(--mantine-gray-4); color: var(--text-main); }
+.tool-select {
+    padding: 0.3rem;
+    border: 1px solid var(--mantine-gray-3);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    outline: none;
+    background: #fff;
+    color: var(--mantine-gray-8);
+}
+.btn-like.liked {
+    background: rgba(250, 82, 82, 0.1) !important;
+    border-color: var(--mantine-red-6) !important;
+    color: var(--mantine-red-6) !important;
+}
+.btn-like { transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.btn-like:active { transform: scale(0.9); }
+
 @media (max-width: 900px) {
     .dashboard { grid-template-columns: 1fr; }
     .feed-layout { grid-template-columns: 1fr; }
