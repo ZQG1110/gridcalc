@@ -1383,29 +1383,58 @@ document.addEventListener('DOMContentLoaded', () => {
         const list = document.getElementById('blogList');
         if (!list) return;
         list.innerHTML = '';
+
         if (blogPosts.length === 0) {
             list.innerHTML = '<div style="text-align:center; padding:2rem; color:var(--text-muted)">아직 등록된 정보 글이 없습니다.</div>';
             return;
         }
 
-        blogPosts.forEach(b => {
-            const isAdmin = currentUser && (currentUser === 'admin' || currentUser.startsWith('admin'));
-            const delBtn = isAdmin ? `<button class="btn-sm btn-del-blog" data-id="${b.id}" style="float:right; border:1px solid var(--loss); color:var(--loss); background:none; padding:2px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">삭제</button>` : '';
+        const isAdmin = currentUser && (currentUser === 'admin' || currentUser.startsWith('admin'));
 
-            const card = document.createElement('div');
-            card.className = 'post-card blog-card';
-            card.innerHTML = `
-                <div class="blog-title">${b.title} ${delBtn}</div>
-                <div class="post-date" style="margin-bottom:1rem;">관리자 | ${b.date}</div>
-                <div class="post-body" style="font-size:1rem; overflow-wrap:anywhere;">${b.content}</div>
-            `;
-            list.appendChild(card);
-        });
+        // 1. 최신 글 (Full Display)
+        const latest = blogPosts[0];
+        const delBtnLatest = isAdmin ? `<button class="btn-sm btn-del-blog" data-id="${latest.id}" style="float:right; border:1px solid var(--loss); color:var(--loss); background:none; padding:2px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">삭제</button>` : '';
+        
+        const latestCard = document.createElement('div');
+        latestCard.className = 'post-card blog-card';
+        latestCard.style.borderLeft = '4px solid var(--primary)';
+        latestCard.innerHTML = `
+            <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:0.5rem;">📌 최신 소식</div>
+            <div class="blog-title" style="font-size:1.4rem;">${latest.title} ${delBtnLatest}</div>
+            <div class="post-date" style="margin-bottom:1rem;">관리자 | ${latest.date}</div>
+            <div class="post-body" style="font-size:1.05rem; overflow-wrap:anywhere;">${latest.content}</div>
+        `;
+        list.appendChild(latestCard);
 
-        // 블로그 삭제 이벤트
+        // 2. 이전 글 목록 (최대 5개)
+        const others = blogPosts.slice(1, 6);
+        if (others.length > 0) {
+            const othersContainer = document.createElement('div');
+            othersContainer.style.marginTop = '2.5rem';
+            othersContainer.innerHTML = `<h3 style="font-size:1.1rem; margin-bottom:1rem; color:var(--mantine-gray-7); border-bottom:2px solid var(--mantine-gray-1); padding-bottom:0.8rem; display:flex; align-items:center;">📜 이전 소식 목록</h3>`;
+            
+            others.forEach(b => {
+                const delBtnOther = isAdmin ? `<button class="btn-del-blog" data-id="${b.id}" style="border:none; color:var(--loss); background:none; cursor:pointer; font-size:1.2rem; padding: 0 10px; line-height:1;">&times;</button>` : '';
+                const item = document.createElement('div');
+                item.className = 'blog-list-item';
+                item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:1.2rem 1rem; background:#fff; border-bottom:1px solid var(--mantine-gray-1); transition:background 0.15s; cursor:default;';
+                item.innerHTML = `
+                    <div style="flex:1;">
+                        <span style="font-weight:600; font-size:1rem; color:var(--mantine-gray-8);">${b.title}</span>
+                        <span style="font-size:0.8rem; color:var(--mantine-gray-5); margin-left:12px;">${b.date.split(',')[0]}</span>
+                    </div>
+                    ${delBtnOther}
+                `;
+                othersContainer.appendChild(item);
+            });
+            list.appendChild(othersContainer);
+        }
+
+        // 블로그 삭제 이벤트 다시 바인딩 (두 타입 모두 처리)
         document.querySelectorAll('.btn-del-blog').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                const id = e.target.dataset.id;
+                e.stopPropagation();
+                const id = e.currentTarget.dataset.id;
                 if(confirm('이 블로그 글을 삭제하시겠습니까?')) {
                     const { error } = await supabaseClient.from('blog_posts').delete().match({ id: id });
                     if (error) {
