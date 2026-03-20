@@ -1417,7 +1417,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const delBtnOther = isAdmin ? `<button class="btn-del-blog" data-id="${b.id}" style="border:none; color:var(--loss); background:none; cursor:pointer; font-size:1.2rem; padding: 0 10px; line-height:1;">&times;</button>` : '';
                 const item = document.createElement('div');
                 item.className = 'blog-list-item';
-                item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:1.2rem 1rem; background:#fff; border-bottom:1px solid var(--mantine-gray-1); transition:background 0.15s; cursor:default;';
+                item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:1.2rem 1rem; background:#fff; border-bottom:1px solid var(--mantine-gray-1); transition:background 0.15s; cursor:pointer;';
                 item.innerHTML = `
                     <div style="flex:1;">
                         <span style="font-weight:600; font-size:1rem; color:var(--mantine-gray-8);">${b.title}</span>
@@ -1425,6 +1425,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     ${delBtnOther}
                 `;
+                
+                // 리스트 아이템 클릭 시 상세보기 모달 오픈
+                item.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('btn-del-blog')) return; // 삭제 버튼 클릭 시 무시
+                    openBlogDetail(b);
+                });
+
                 othersContainer.appendChild(item);
             });
             list.appendChild(othersContainer);
@@ -1445,6 +1452,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+    }
+
+    function openBlogDetail(post) {
+        const modal = document.getElementById('postDetailModal');
+        const content = document.getElementById('postDetailContent');
+        if (!modal || !content) return;
+
+        content.innerHTML = `
+            <div style="padding:1.5rem; text-align:left;">
+                <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:0.5rem;">📜 이전 게시물 상세보기</div>
+                <h2 style="font-size:1.6rem; margin-bottom:0.8rem; color:var(--mantine-gray-9); line-height:1.3;">${post.title}</h2>
+                <div style="font-size:0.85rem; color:var(--mantine-gray-5); margin-bottom:1.5rem; border-bottom:1px solid var(--mantine-gray-2); padding-bottom:1rem;">
+                    관리자 | ${post.date}
+                </div>
+                <div class="blog-detail-body" style="font-size:1.05rem; line-height:1.8; color:var(--mantine-gray-8); overflow-wrap:anywhere;">
+                    ${post.content}
+                </div>
+            </div>
+        `;
+        modal.classList.add('show');
     }
 
     // --- Drag and Drop Logic ---
