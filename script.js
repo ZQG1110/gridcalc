@@ -806,32 +806,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchBlogPosts() {
         try {
-            const { data, error } = await supabaseClient
-                .from('blog_posts')
-                .select('*, blog_comments(*)')
-                .order('created_at', { ascending: false });
+            // 게시글과 댓글을 각각 따로 가져옴 (Relationship 오류 방지)
+            const [postsRes, commentsRes] = await Promise.all([
+                supabaseClient.from('blog_posts').select('*').order('created_at', { ascending: false }),
+                supabaseClient.from('blog_comments').select('*').order('created_at', { ascending: true })
+            ]);
 
-            if (error) {
-                console.error('Fetch Blog Error:', error);
-                alert('블로그 글을 불러오는 데 실패했습니다: ' + error.message);
+            if (postsRes.error) {
+                console.error('Fetch Blog Posts Error:', postsRes.error);
+                alert('블로그 글을 불러오는 데 실패했습니다: ' + postsRes.error.message);
                 return;
             }
 
-            if (data) {
-                blogPosts = data.map(b => ({
+            const postsData = postsRes.data || [];
+            const commentsData = commentsRes.data || [];
+
+            if (postsData) {
+                blogPosts = postsData.map(b => ({
                     id: b.id,
                     title: b.title || '(제목 없음)',
                     content: b.content || '',
                     date: b.created_at ? new Date(b.created_at).toLocaleString() : '날짜 미상',
                     likes: b.likes_count || 0,
                     likedBy: b.liked_by || [],
-                    comments: (b.blog_comments || []).sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(c => ({
+                    // 수동으로 해당 게시글의 댓글들만 필터링
+                    comments: commentsData.filter(c => c.blog_post_id == b.id).map(c => ({
                         id: c.id,
                         user: c.username || '익명',
                         user_id: c.user_id,
                         text: c.text || ''
                     }))
                 }));
+                
                 renderBlogFeed();
                 
                 // 상세 페이지 유지
