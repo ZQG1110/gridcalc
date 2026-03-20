@@ -805,35 +805,45 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnBackToBlog').addEventListener('click', () => switchView('view-blog'));
 
     async function fetchBlogPosts() {
-        const { data, error } = await supabaseClient
-            .from('blog_posts')
-            .select('*, blog_comments(*)')
-            .order('created_at', { ascending: false });
+        try {
+            const { data, error } = await supabaseClient
+                .from('blog_posts')
+                .select('*, blog_comments(*)')
+                .order('created_at', { ascending: false });
 
-        if (data) {
-            blogPosts = data.map(b => ({
-                id: b.id,
-                title: b.title,
-                content: b.content,
-                date: new Date(b.created_at).toLocaleString(),
-                likes: b.likes_count || 0,
-                likedBy: b.liked_by || [],
-                comments: (b.blog_comments || []).sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(c => ({
-                    id: c.id,
-                    user: c.username,
-                    user_id: c.user_id,
-                    text: c.text
-                }))
-            }));
-            renderBlogFeed();
-            
-            // 상세 페이지 유지
-            const activeView = localStorage.getItem('gridCalcActiveView');
-            const activeBlogId = localStorage.getItem('gridCalcActiveBlogId');
-            if (activeView === 'view-blog-article' && activeBlogId) {
-                const updatedBlog = blogPosts.find(bp => bp.id == activeBlogId);
-                if (updatedBlog) renderBlogArticle(updatedBlog);
+            if (error) {
+                console.error('Fetch Blog Error:', error);
+                alert('블로그 글을 불러오는 데 실패했습니다: ' + error.message);
+                return;
             }
+
+            if (data) {
+                blogPosts = data.map(b => ({
+                    id: b.id,
+                    title: b.title || '(제목 없음)',
+                    content: b.content || '',
+                    date: b.created_at ? new Date(b.created_at).toLocaleString() : '날짜 미상',
+                    likes: b.likes_count || 0,
+                    likedBy: b.liked_by || [],
+                    comments: (b.blog_comments || []).sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(c => ({
+                        id: c.id,
+                        user: c.username || '익명',
+                        user_id: c.user_id,
+                        text: c.text || ''
+                    }))
+                }));
+                renderBlogFeed();
+                
+                // 상세 페이지 유지
+                const activeView = localStorage.getItem('gridCalcActiveView');
+                const activeBlogId = localStorage.getItem('gridCalcActiveBlogId');
+                if (activeView === 'view-blog-article' && activeBlogId) {
+                    const updatedBlog = blogPosts.find(bp => bp.id == activeBlogId);
+                    if (updatedBlog) renderBlogArticle(updatedBlog);
+                }
+            }
+        } catch (err) {
+            console.error('Fetch Blog Unexpected Error:', err);
         }
     }
 
