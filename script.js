@@ -75,6 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Supabase Sync & Init ---
     async function initApp() {
+        // 1. 새로고침 시 보던 탭 즉시 복구 (데이터 로딩 전 실행하여 깜빡임 방지)
+        const lastView = localStorage.getItem('gridCalcActiveView') || 'view-intro';
+        switchView(lastView);
+
         // 초기 UI 상태 설정
         updateAuthUI();
         
@@ -99,25 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateSimulatorUI();
         checkNotifications();
-        
-        // 새로고침 시 보던 탭 복구
-        const lastView = localStorage.getItem('gridCalcActiveView');
-        if (lastView) {
-            const targetBtn = document.querySelector(`.nav-btn[data-target="${lastView}"]`) || 
-                             (lastView === 'view-mypage' ? navMyPage : null);
-            if (targetBtn) {
-                // UI 전환 로직 직접 호출 (click() 호출 시 중복 fetch 방지)
-                navBtns.forEach(b => b.classList.remove('active'));
-                navMyPage.classList.remove('active');
-                targetBtn.classList.add('active');
-                viewSections.forEach(v => {
-                    v.classList.remove('active');
-                    v.classList.add('hidden');
-                });
-                document.getElementById(lastView).classList.remove('hidden');
-                document.getElementById(lastView).classList.add('active');
-            }
-        }
     }
 
     initApp();
