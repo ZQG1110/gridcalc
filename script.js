@@ -1267,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isNewCmd = (idx >= seen) && hasNewComments;
                 const newCmdBadge = isNewCmd ? `<span style="color:var(--loss); font-size:0.75rem; margin-left:0.4rem; font-weight:bold;">N</span>` : '';
                 commentsHtml += `<div class="comment-item">
-                    <span class="comment-author">${c.user}</span>
+                    <span class="comment-author">${formatDisplayName(c.user)}</span>
                     <span class="comment-text">${c.text}</span>
                     ${newCmdBadge}
                 </div>`;
@@ -1490,7 +1490,7 @@ document.addEventListener('DOMContentLoaded', () => {
             latestCommentsHtml += `
                 <div class="comment-item" style="justify-content:space-between; display:flex; align-items:center;">
                     <div>
-                        <span class="comment-author">${c.user}</span>
+                        <span class="comment-author">${formatDisplayName(c.user)}</span>
                         <span class="comment-text">${c.text}</span>
                     </div>
                     ${delBtn}
@@ -1575,7 +1575,7 @@ document.addEventListener('DOMContentLoaded', () => {
             commentsHtml += `
                 <div class="comment-item" style="justify-content:space-between; display:flex; align-items:center;">
                     <div>
-                        <span class="comment-author">${c.user}</span>
+                        <span class="comment-author">${formatDisplayName(c.user)}</span>
                         <span class="comment-text">${c.text}</span>
                     </div>
                     ${delBtnC}
