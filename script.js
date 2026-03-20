@@ -1433,26 +1433,25 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const latestCard = document.createElement('div');
         latestCard.className = 'post-card blog-card';
-        latestCard.style.cssText = 'border-left:5px solid var(--primary); cursor:pointer;';
+        latestCard.style.cssText = 'border-left:5px solid var(--primary); margin-bottom:4rem;';
         latestCard.innerHTML = `
             <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:0.8rem;">📌 최신 소식</div>
-            <div class="blog-title" style="font-size:1.6rem; margin-bottom:1rem;">${latest.title} ${delBtnLatest}</div>
-            <div class="post-date" style="margin-bottom:1.5rem;">관리자 | ${latest.date}</div>
-            <div class="post-body" style="font-size:1.1rem; line-height:1.7; max-height:200px; overflow:hidden; position:relative; margin-bottom:1.5rem;">
+            <div class="blog-title" style="font-size:2rem; margin-bottom:1rem; line-height:1.3;">${latest.title} ${delBtnLatest}</div>
+            <div class="post-date" style="margin-bottom:2rem; color:var(--mantine-gray-5);">관리자 | ${latest.date}</div>
+            <div class="post-body" style="font-size:1.15rem; line-height:1.8; color:var(--mantine-gray-8); margin-bottom:2.5rem;">
                 ${latest.content}
-                <div style="position:absolute; bottom:0; left:0; right:0; height:80px; background:linear-gradient(transparent, #fff);"></div>
             </div>
             
-            <div class="post-footer" style="padding-top:1rem; border-top:1px solid var(--mantine-gray-1); display:flex; justify-content:space-between; align-items:center;">
-                <div style="display:flex; gap:1rem;">
-                    <span class="btn-like ${isLikedLatest ? 'liked' : ''}" style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;" data-id="${latest.id}" data-type="blog">
+            <div class="post-footer" style="padding-top:1.5rem; border-top:1px solid var(--mantine-gray-1); display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; gap:1.2rem;">
+                    <span class="btn-like ${isLikedLatest ? 'liked' : ''}" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;" data-id="${latest.id}" data-type="blog">
                         ${isLikedLatest ? '❤️' : '🤍'} <b>${latest.likes}</b>
                     </span>
-                    <span style="display:flex; align-items:center; gap:0.4rem; color:var(--mantine-gray-6);">
+                    <span style="display:flex; align-items:center; gap:0.5rem; color:var(--mantine-gray-6);">
                         💬 <b>${latest.comments.length}</b>
                     </span>
                 </div>
-                <button class="btn btn-outline mini-btn" style="width:auto; padding:0 1rem; border-color:var(--primary); color:var(--primary);">더 보기 & 댓글</button>
+                <button class="btn btn-outline mini-btn" style="width:auto; padding:0 1.5rem; border-color:var(--primary); color:var(--primary); height:40px;">댓글 남기기 & 상세 보기</button>
             </div>
         `;
         latestCard.addEventListener('click', (e) => {
