@@ -146,76 +146,63 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-    // --- Auth & Routing ---
-    const logoHome = document.getElementById('logoHome');
-    logoHome.addEventListener('click', () => {
-        navBtns.forEach(b => b.classList.remove('active'));
-        const targetBtn = document.querySelector('[data-target="view-simulator"]');
-        if (targetBtn) targetBtn.classList.add('active');
+    // --- Navigation & Core Elements ---
+    function switchView(targetId) {
+        if (!targetId) return;
+
+        // 1. 현재 탭 저장 및 UI 상태 변경 (즉시 실행)
+        localStorage.setItem('gridCalcActiveView', targetId);
+
+        // 모든 메뉴 버튼 활성 상태 초기화
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         
+        // 타겟 버튼 활성화
+        const targetBtn = document.querySelector(`.nav-btn[data-target="${targetId}"]`) || 
+                         (targetId === 'view-mypage' ? navMyPage : null);
+        if (targetBtn) targetBtn.classList.add('active');
+
+        // 섹션 전환
         viewSections.forEach(v => {
-            v.classList.remove('active');
-            v.classList.add('hidden');
-        });
-        const simView = document.getElementById('view-simulator');
-        simView.classList.remove('hidden');
-        simView.classList.add('active');
-    });
-
-    navBtns.forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const targetId = e.currentTarget.dataset.target;
-            if (!targetId) return;
-
-            // 1. 현재 탭 저장 (새로고침 시 유지용)
-            localStorage.setItem('gridCalcActiveView', targetId);
-
-            // 2. 메뉴 클릭 시 데이터 새로고침 (사이트 최신화)
-            if (targetId === 'view-profit') await fetchPosts();
-            if (targetId === 'view-blog') await fetchBlogPosts();
-            if (targetId === 'view-simulator' && currentUserId) await loadSimulatorState();
-
-            navBtns.forEach(b => b.classList.remove('active'));
-            navMyPage.classList.remove('active');
-            e.currentTarget.classList.add('active');
-            
-            viewSections.forEach(v => {
+            if (v.id === targetId) {
+                v.classList.remove('hidden');
+                v.classList.add('active');
+            } else {
                 v.classList.remove('active');
                 v.classList.add('hidden');
-            });
-            document.getElementById(targetId).classList.remove('hidden');
-            document.getElementById(targetId).classList.add('active');
+            }
         });
-    });
 
-    navMyPage.addEventListener('click', () => {
-        // 현재 탭 저장 (마이페이지)
-        localStorage.setItem('gridCalcActiveView', 'view-mypage');
-        
-        navBtns.forEach(b => b.classList.remove('active'));
-        navMyPage.classList.add('active');
-        
-        // Re-render my page first so it can render the "New" badges based on current lastSeenComments
-        renderMyPage();
-
-        // Clear notifications
-        if (currentUser) {
-            const myP = profitPosts.filter(p => p.user === currentUser);
-            myP.forEach(p => {
-                lastSeenComments[p.id] = p.comments.length;
-            });
-            localStorage.setItem('gridCalcNoti', JSON.stringify(lastSeenComments));
-            checkNotifications();
+        // 2. 페이지 데이터 데이터 새로고침 (비동기 처리)
+        if (targetId === 'view-profit') fetchPosts();
+        if (targetId === 'view-blog') fetchBlogPosts();
+        if (targetId === 'view-simulator' && currentUserId) loadSimulatorState().then(updateSimulatorUI);
+        if (targetId === 'view-mypage') {
+            renderMyPage();
+            // 알림 제거 로직
+            if (currentUser) {
+                const myP = profitPosts.filter(p => p.user === currentUser);
+                myP.forEach(p => {
+                    lastSeenComments[p.id] = p.comments.length;
+                });
+                localStorage.setItem('gridCalcNoti', JSON.stringify(lastSeenComments));
+                checkNotifications();
+            }
         }
+    }
 
-        viewSections.forEach(v => {
-            v.classList.remove('active');
-            v.classList.add('hidden');
+    // 로고 클릭 (홈으로)
+    const logoHome = document.getElementById('logoHome');
+    logoHome.addEventListener('click', () => switchView('view-simulator'));
+
+    // 버튼들에 이벤트 리스너 연결
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const target = e.currentTarget.dataset.target;
+            if (target) switchView(target);
         });
-        const mpView = document.getElementById('view-mypage');
-        mpView.classList.remove('hidden');
-        mpView.classList.add('active');
     });
+
+    // 마이페이지는 .nav-btn 리스너에서 이미 처리됨 (switchView 상단에서 data-target으로 캐치)
 
     btnOpenLogin.addEventListener('click', () => {
         isSignupMode = false;
